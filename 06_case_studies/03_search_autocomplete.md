@@ -74,21 +74,15 @@ root
 
 ## 系统架构
 
-```
-             [用户搜索框]
-                  ↓ 每次按键
-         [API Gateway / CDN]
-                  ↓
-         [自动补全服务集群]（无状态）
-           /              \
-    [Redis 缓存]      [Trie 服务]
-    （前缀→Top5）      （Trie 完整结构）
-                          ↑ 每天更新
-               [离线 Trie 构建管道]
-                          ↑ 读取
-               [搜索日志汇聚（Kafka）]
-                          ↑ 写入
-               [搜索记录收集服务]
+```mermaid
+flowchart TD
+    User["用户搜索框"] -->|每次按键| GW["API Gateway / CDN"]
+    GW --> App["自动补全服务集群（无状态）"]
+    App --> Cache["Redis 缓存\n前缀 → Top5"]
+    App --> Trie["Trie 服务\nTrie 完整结构"]
+    Pipeline["离线 Trie 构建管道"] -->|每天更新| Trie
+    Kafka["搜索日志汇聚\nKafka"] -->|读取| Pipeline
+    Collector["搜索记录收集服务"] -->|写入| Kafka
 ```
 
 ---

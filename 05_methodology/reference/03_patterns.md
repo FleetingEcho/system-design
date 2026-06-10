@@ -110,16 +110,11 @@ products: (id, name, category)
 
 **推模式（Fanout on Write / Push）：**
 
-```
-用户A 发推文
-  ↓
-Fanout 服务：拉取用户A 的所有粉丝列表
-  ↓
-把推文 ID 写入每个粉丝的 Timeline 缓存
-（1000万粉丝 = 写 1000万个缓存条目）
-
-用户 B 读 Timeline：
-  直接读自己的缓存，速度极快
+```mermaid
+flowchart LR
+    Post["用户A 发推文"] --> Fanout["Fanout 服务\n拉取全部粉丝列表"]
+    Fanout -->|"1000万次写入"| Caches["每个粉丝的\nTimeline 缓存"]
+    ReadB["用户B 读 Timeline"] -->|直接读缓存，极快| Caches
 ```
 
 **优点：** 读极快（预计算）
@@ -127,15 +122,12 @@ Fanout 服务：拉取用户A 的所有粉丝列表
 
 **拉模式（Fanout on Read / Pull）：**
 
-```
-用户A 发推文
-  ↓
-只写一次：保存推文到推文库
-
-用户B 读 Timeline：
-  查询所有关注的人（B 关注了 50 人）
-  获取这 50 人最新的推文
-  实时合并排序
+```mermaid
+flowchart LR
+    Post2["用户A 发推文"] -->|只写一次| TweetDB["推文数据库"]
+    ReadB2["用户B 读 Timeline"] --> Query["查关注的50人\n获取各自最新推文"]
+    Query --> TweetDB
+    Query --> Merge["实时合并排序\n返回"]
 ```
 
 **优点：** 写极快（只写一次）

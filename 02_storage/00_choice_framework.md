@@ -16,22 +16,24 @@
 
 ### 问题 1：数据模型是什么
 
-```
-数据有明确的关系结构（JOIN、外键）？
-  ├── 是 → 优先考虑 RDBMS（MySQL/PostgreSQL）
-  └── 否 → 继续看数据的形态
-             ├── 文档（嵌套 JSON，Schema 灵活）→ 文档型（MongoDB）
-             ├── 键值对（简单查找，无复杂查询）→ KV（Redis/DynamoDB）
-             ├── 时序/写多读少/按列分析 → 列存储（Cassandra/ClickHouse）
-             └── 节点和关系（社交图谱）→ 图数据库（Neo4j）
+```mermaid
+flowchart TD
+    Q1{数据有明确的\n关系结构 JOIN/外键?}
+    Q1 -- 是 --> RDBMS["RDBMS\nMySQL / PostgreSQL"]
+    Q1 -- 否 --> Q2{数据形态?}
+    Q2 --> Doc["文档型 MongoDB\nJSON Schema 灵活"]
+    Q2 --> KV["KV Redis / DynamoDB\n简单查找，无复杂查询"]
+    Q2 --> Col["列存储 Cassandra / ClickHouse\n时序/写多读少/按列分析"]
+    Q2 --> Graph["图数据库 Neo4j\n节点和关系（社交图谱）"]
 ```
 
 ### 问题 2：一致性要求
 
-```
-操作失败时，数据不一致的代价有多高？
-  ├── 极高（金融、库存）→ 需要 ACID 事务 → RDBMS 或 NewSQL
-  └── 可以接受短暂不一致 → BASE / 最终一致性 → NoSQL
+```mermaid
+flowchart TD
+    Q{数据不一致的代价?}
+    Q -- 极高（金融/库存）--> ACID["ACID 事务\nRDBMS 或 NewSQL"]
+    Q -- 可接受短暂不一致 --> BASE["BASE / 最终一致性\nNoSQL"]
 ```
 
 ### 问题 3：读写模式
@@ -45,11 +47,12 @@
 
 ### 问题 4：规模和扩展性
 
-```
-数据量和 QPS 预期：
-  ├── 中等规模（< 数 TB，< 1万 QPS）→ 单机 RDBMS 通常够用
-  ├── 大规模，需要水平扩展 → NoSQL（天然分布式）或 RDBMS 分片
-  └── 全球多地域部署 → NewSQL（CockroachDB/Spanner）或 NoSQL
+```mermaid
+flowchart TD
+    Q{数据量 / QPS 预期?}
+    Q -- "中等规模\n< 数TB / < 1万QPS" --> Single["单机 RDBMS\n通常够用"]
+    Q -- "大规模\n需水平扩展" --> Dist["NoSQL（天然分布式）\n或 RDBMS 分片"]
+    Q -- "全球多地域" --> NewSQL["NewSQL\nCockroachDB / Spanner\n或 NoSQL"]
 ```
 
 ---

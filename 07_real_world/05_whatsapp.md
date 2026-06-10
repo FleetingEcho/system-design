@@ -181,29 +181,18 @@ WhatsApp 2016 年全面启用 E2EE，使用 Signal Protocol（开源）
 
 ## 水平扩展架构
 
+早期为单体 Erlang 集群，规模增长后扩展为以下架构：
+
+```mermaid
+flowchart TD
+    Client["客户端"] -->|"XMPP over TLS"| ConnSvr["Connection Server 集群\nErlang 每台 200万连接\nDNS/LB 分配（无状态）"]
+    ConnSvr --> Router["Message Router\n按接收方ID路由\nRedis: userId→serverId"]
+    Router -->|接收方在线| ConnSvr2["对应 Connection Server\n推送消息"]
+    Router -->|接收方离线| Offline["Offline Storage\n暂存（最多30天）"]
+    Offline --> Notif["Notification Service\nAPNs / FCM\n只通知，不含内容"]
 ```
-早期：单体 Erlang 集群
 
-规模增长后：
-
-[客户端]
-    ↓ XMPP over TLS
-[Connection Server 集群]（Erlang，每台 200 万连接）
-    ↓
-[Message Router]（根据接收方 ID 路由到对应 Connection Server）
-    ↓
-[Offline Storage]（接收方离线时暂存）
-    ↓
-[Notification Service]（推送 APNs/FCM）
-
-扩展方式：
-  Connection Server：无状态（用户连哪台都行），DNS/LB 分配
-  路由：维护 userId → connectionServerId 的映射（存 Redis）
-  
-关键数字：
-  2014 年：32 台服务器处理全部消息（Erlang 高效率的体现）
-  现在：规模更大，但每台机器的连接密度仍极高
-```
+扩展方式：Connection Server 无状态，DNS/LB 分配；路由通过 Redis 维护 `userId → connectionServerId` 映射。2014 年 32 台服务器处理全部消息（Erlang 高效率的体现）。
 
 ---
 

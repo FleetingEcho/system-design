@@ -165,29 +165,24 @@ DNS 是把人类可读的域名（`www.example.com`）翻译成机器可读的 I
 
 ### 完整的 DNS 解析流程
 
-```
-浏览器输入 www.example.com
-  ↓
-1. 检查浏览器 DNS 缓存 → 有？直接用
-  ↓（没有）
-2. 检查操作系统 DNS 缓存（/etc/hosts 等）→ 有？直接用
-  ↓（没有）
-3. 查询本地 DNS 解析器（通常是路由器或 ISP 提供的）→ 有缓存？直接用
-  ↓（没有）
-4. 本地解析器查询根域名服务器（Root DNS Server）
-   "你知道 .com 域在哪吗？"
-   → "不知道具体，但 .com 的 TLD 服务器地址是 X.X.X.X"
-  ↓
-5. 本地解析器查询 .com TLD（Top-Level Domain）服务器
-   "你知道 example.com 的权威 DNS 在哪吗？"
-   → "权威服务器地址是 Y.Y.Y.Y"
-  ↓
-6. 本地解析器查询 example.com 的权威 DNS 服务器
-   "www.example.com 的 IP 是多少？"
-   → "93.184.216.34"
-  ↓
-7. 本地解析器缓存结果，返回给浏览器
-8. 浏览器连接 93.184.216.34
+```mermaid
+sequenceDiagram
+    participant B as 浏览器
+    participant L as 本地 DNS 解析器
+    participant R as 根 DNS 服务器
+    participant T as .com TLD 服务器
+    participant A as 权威 DNS (example.com)
+
+    B->>L: www.example.com?
+    Note over B,L: 先查浏览器缓存 → 系统缓存 → 本地解析器缓存
+    L->>R: .com TLD 在哪？
+    R-->>L: X.X.X.X（TLD地址）
+    L->>T: example.com 权威DNS在哪？
+    T-->>L: Y.Y.Y.Y（权威服务器）
+    L->>A: www.example.com 的IP？
+    A-->>L: 93.184.216.34
+    L-->>B: 93.184.216.34（缓存TTL秒）
+    B->>B: 连接 93.184.216.34
 ```
 
 **这个过程通常需要几十到几百毫秒**（如果没有缓存）。所以每次 DNS 查询都有缓存。
@@ -266,10 +261,11 @@ CDN 的关键在于 DNS 这一步：CDN 厂商的 DNS 服务器知道用户的�
 
 **2. CDN 节点处理请求**
 
-```
-CDN 节点收到请求
-  ├── 缓存命中 → 直接返回（低 latency，源服务器无压力）
-  └── 缓存未命中 → 回源（从源服务器取内容，缓存到本地，再返回给用户）
+```mermaid
+flowchart TD
+    Req[CDN节点收到请求] --> Hit{缓存命中?}
+    Hit -- 是 --> Return["直接返回\n低 latency，源服务器无压力"]
+    Hit -- 否 --> Origin["回源\n从源服务器取内容\n缓存到本地\n再返回用户"]
 ```
 
 ### CDN 适合缓存什么

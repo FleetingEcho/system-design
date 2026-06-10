@@ -175,28 +175,18 @@ Uber 的做法：基于 ETA 的匹配
 
 ## 最终架构全景
 
-```
-[乘客 App]          [司机 App]
-     |                   |
-     | REST/WebSocket     | 位置更新（每 4 秒）
-     ↓                   ↓
-[API Gateway]      [Location Service]
-     |                   |
-     |              [Redis GEO / H3 Index]
-     |                   |
-[Dispatch Service] ← 查询附近司机
-     |
-     | 1. 候选司机列表（H3 六边形查询）
-     | 2. 批量 ETA 计算（路网图）
-     | 3. 排序 + 选最优司机
-     | 4. CAS 锁定司机状态（防双派）
-     | 5. 通知司机（WebSocket Push）
-     |
-[Trip Service] ← 管理行程状态机
-     |
-[Kafka] ← 异步：记账、统计、推荐、动态定价
-     |
-[Surge Pricing Service] ← 实时供需分析（H3 聚合）
+```mermaid
+flowchart TD
+    Passenger["乘客 App\nREST/WebSocket"] --> GW[API Gateway]
+    Driver["司机 App\n位置更新每4秒"] --> LS[Location Service]
+    LS --> H3["Redis GEO / H3 Index"]
+
+    GW --> Dispatch["Dispatch Service\n1.H3六边形查询候选司机\n2.批量ETA计算（路网图）\n3.排序选最优\n4.CAS锁定（防双派）\n5.WebSocket通知司机"]
+    H3 --> Dispatch
+
+    Dispatch --> Trip["Trip Service\n行程状态机"]
+    Trip --> Kafka["Kafka\n异步：记账/统计/推荐"]
+    Kafka --> Surge["Surge Pricing Service\nFlink 实时供需分析（H3聚合）"]
 ```
 
 ---

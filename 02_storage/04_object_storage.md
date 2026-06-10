@@ -190,14 +190,11 @@ const url = await s3.getSignedUrlPromise('getObject', {
 
 对象存储是如何实现"近乎无限"扩展的？
 
-```
-客户端
-  ↓
-前端代理层（路由请求）
-  ↓
-元数据服务（记录 Key → 实际存储位置的映射）
-  ↓
-存储节点集群（实际存储二进制数据，多副本）
+```mermaid
+flowchart TD
+    Client[客户端] --> Proxy["前端代理层\n路由请求"]
+    Proxy --> Meta["元数据服务\nKey → 存储位置映射"]
+    Meta --> Storage["存储节点集群\n实际二进制数据 × 3副本\n不同机架/机房"]
 ```
 
 **关键设计：**

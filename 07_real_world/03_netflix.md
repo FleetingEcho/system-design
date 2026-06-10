@@ -174,29 +174,24 @@ Netflix 主页 80% 的播放来自推荐（不是搜索）
 
 ## 最终架构全景
 
-```
-[用户设备]
-    ↓ 首页加载
-[API Gateway（Zuul）]
-    ↓
-[推荐服务] → Redis（实时特征）+ Cassandra（历史数据）
-    ↓
-[视频目录服务] → 返回内容元数据
-    |
-    ↓ 播放请求
-[Steering Service] ← 决定从哪个 OCA 节点取视频
-    |                 考虑：用户位置、OCA 负载、内容是否在该 OCA
-    ↓
-[Open Connect OCA] ← 本地 CDN 节点，95% 命中率
-    |
-    ↓（5% cache miss）
-[S3 + 源站] ← 原始视频文件
+```mermaid
+flowchart TD
+    Device[用户设备] -->|首页加载| Zuul["API Gateway (Zuul)"]
+    Zuul --> Rec["推荐服务"]
+    Rec --> RedisRec["Redis（实时特征）"]
+    Rec --> CassRec["Cassandra（历史数据）"]
+    Zuul --> Catalog["视频目录服务\n返回内容元数据"]
 
-[监控层]
-  EVCache（Netflix 自研的分布式 Memcached）← 会话缓存
-  Atlas（指标收集）
-  Zipkin（分布式追踪）
-  Turbine（Hystrix 熔断状态聚合）
+    Device -->|播放请求| Steering["Steering Service\n决定最优 OCA 节点\n考虑：位置/负载/内容"]
+    Steering --> OCA["Open Connect OCA\n本地 CDN 节点 95%命中"]
+    OCA -->|5% cache miss| S3["S3 + 源站\n原始视频文件"]
+
+    subgraph 监控层
+        EVCache["EVCache\n会话缓存"]
+        Atlas["Atlas\n指标收集"]
+        Zipkin["Zipkin\n分布式追踪"]
+        Turbine["Turbine\nHystrix 熔断聚合"]
+    end
 ```
 
 ---

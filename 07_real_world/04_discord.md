@@ -159,19 +159,16 @@ Presence 更新：
 
 解决方案：Gateway 分片
 
-架构：
-  [消息] → [消息服务] → 发布到 Kafka 的 guild:{guildId} topic
-                           ↓
-                    [多个 Fanout Worker]
-                    每个 Worker 消费一部分 Guild 的消息
-                           ↓
-                    [WebSocket Gateway 集群]
-                    按用户 ID 分片，每台 Gateway 只管理部分用户的连接
-                           ↓
-                    [具体用户的 WebSocket 连接]
+```mermaid
+flowchart TD
+    Msg[消息] --> MsgSvc[消息服务]
+    MsgSvc -->|"PUBLISH guild:{guildId}"| Kafka["Kafka\nguild Topic 分片"]
+    Kafka --> Workers["多个 Fanout Worker\n每个 Worker 消费部分 Guild"]
+    Workers --> GWCluster["WebSocket Gateway 集群\n按 userId 分片\n每台只管理部分用户连接"]
+    GWCluster -->|Pub/Sub 协调| User["用户的 WebSocket 连接\n只推送在线用户"]
+```
 
-关键：Gateway 节点之间通过 Pub/Sub 协调
-  消息到达后，只推送给当前在线且连接在本 Gateway 的用户
+关键：Gateway 节点之间通过 Pub/Sub 协调，消息到达后只推送给当前在线且连接在本 Gateway 的用户。
 ```
 
 ---

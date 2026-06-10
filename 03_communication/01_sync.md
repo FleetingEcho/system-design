@@ -255,20 +255,12 @@ query { user { friends { friends { friends { orders { items { reviews { ... } } 
 
 API Gateway 是微服务架构中的**统一入口**，所有外部请求都经过它再路由到后端服务：
 
-```
-客户端
-  ↓
-API Gateway
-  ├── 鉴权 & 授权
-  ├── 限流
-  ├── 请求路由
-  ├── 协议转换（REST → gRPC）
-  ├── 请求/响应变换
-  └── 日志 & 监控
-  ↓
-┌────────────┬────────────┬────────────┐
-│ 用户服务   │ 订单服务   │ 商品服务   │
-└────────────┴────────────┴────────────┘
+```mermaid
+flowchart TD
+    Client[客户端] --> GW["API Gateway\n鉴权&授权 / 限流 / 请求路由\n协议转换(REST→gRPC) / 日志&监控"]
+    GW --> UserSvc[用户服务]
+    GW --> OrderSvc[订单服务]
+    GW --> ProductSvc[商品服务]
 ```
 
 ### API Gateway 的核心功能

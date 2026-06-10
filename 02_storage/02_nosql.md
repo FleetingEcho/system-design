@@ -155,24 +155,25 @@ user_002      2024-01-01               event_E
 **Cassandra 的设计目标：高可用 + 高写入吞吐**
 
 **写入原理（LSM Tree）：**
-```
-写入请求
-  ↓
-1. 写入 CommitLog（WAL，持久化保证）
-2. 写入 Memtable（内存中的有序结构）
-3. 定期把 Memtable flush 到磁盘，生成 SSTable 文件
-4. 后台 Compaction 合并 SSTable，删除旧版本数据
+
+```mermaid
+flowchart LR
+    W[写入请求] --> WAL["CommitLog (WAL)\n持久化保证"]
+    W --> Mem["Memtable\n内存有序结构"]
+    Mem -->|"写满 flush"| SST["SSTable 文件\n磁盘，不可变"]
+    SST -->|"后台 Compaction"| SST2["合并后 SSTable\n去除旧版本"]
 ```
 
 写入只是追加（Append-Only），没有随机写，因此写入速度极快。
 
 **读取原理：**
-```
-读取请求
-  ↓
-1. 查 Memtable
-2. 查 SSTable（可能有多个，合并结果）
-3. Bloom Filter 快速判断某个 SSTable 是否包含这个 Key（减少不必要的读）
+
+```mermaid
+flowchart TD
+    R[读取请求] --> BF["Bloom Filter\n判断 Key 是否在 SSTable"]
+    BF --> Mem2["查 Memtable（最新）"]
+    BF --> SSTRead["查相关 SSTable\n合并多个结果"]
+    Mem2 & SSTRead --> Result[返回最新值]
 ```
 
 读取比写入慢，因为可能要合并多个 SSTable。

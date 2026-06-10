@@ -34,12 +34,17 @@ Node A ←——→ Node B   ✗   Node C
 
 所有节点上的数据完全一致。任何读操作，**无论访问哪个节点**，都能读到最新写入的数据。
 
-```
-客户端写入 x=2 到 Node A
-↓
-Node A 同步到 Node B（成功才返回）
-↓
-客户端读 Node B，得到 x=2  ✓
+```mermaid
+sequenceDiagram
+    participant C as 客户端
+    participant A as Node A
+    participant B as Node B
+    C->>A: write(x=2)
+    A->>B: 同步复制
+    B-->>A: 确认
+    A-->>C: 写入成功
+    C->>B: read(x)
+    B-->>C: x=2 ✓
 ```
 
 注意：这里的 Consistency 是**强一致性**，不是数据库 ACID 里的 C（那个 C 是约束不被违反）。

@@ -363,18 +363,13 @@ const result = await retryWithBackoff(() => callExternalAPI());
 
 ### 重试 + 熔断 + 幂等的组合
 
-```
-请求失败
-  ↓
-幂等 Key 确保重试安全
-  ↓
-指数退避重试（最多 3 次）
-  ↓
-熔断器检测到持续失败（3次都失败）
-  ↓
-熔断打开，后续请求快速失败（不再重试）
-  ↓
-等待 30 秒后探测
+```mermaid
+flowchart TD
+    Fail["❌ 请求失败"] --> Idempotent["幂等 Key\n确保重试安全"]
+    Idempotent --> Retry["指数退避重试\n最多 3 次"]
+    Retry --> CB["熔断器检测持续失败\n3 次均失败"]
+    CB --> Open["熔断打开\n后续请求快速失败（不再重试）"]
+    Open --> Probe["等待 30s 后\n半开探测"]
 ```
 
 ---

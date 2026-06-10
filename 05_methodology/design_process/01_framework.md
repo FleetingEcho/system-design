@@ -129,18 +129,16 @@
 
 ### 标准组件清单
 
-```
-[客户端] → [CDN（静态资源）] → [API Gateway（鉴权/限流）]
-                                        ↓
-                          [负载均衡（Load Balancer）]
-                                        ↓
-                          [应用服务器（无状态）]
-                         /               \
-              [缓存（Redis）]        [数据库（MySQL/PostgreSQL）]
-                                          ↓
-                                   [消息队列（Kafka）]
-                                          ↓
-                                   [异步处理服务]
+```mermaid
+flowchart TD
+    Client[客户端] --> CDN["CDN\n静态资源"]
+    Client --> GW["API Gateway\n鉴权 / 限流"]
+    GW --> LB["负载均衡 LB"]
+    LB --> App["应用服务器（无状态）"]
+    App --> Cache["缓存 Redis"]
+    App --> DB["数据库\nMySQL / PostgreSQL"]
+    DB --> MQ["消息队列 Kafka"]
+    MQ --> Async["异步处理服务"]
 ```
 
 ### 数据流

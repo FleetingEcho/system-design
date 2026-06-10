@@ -65,11 +65,14 @@
 
 Kafka 是一个**分布式日志系统**，数据存储模型类似于日志文件的追加写：
 
-```
-Topic: user-events
-  ├── Partition 0: [事件1, 事件2, 事件5, 事件8 ...]  → Broker 1
-  ├── Partition 1: [事件3, 事件6, 事件9 ...]          → Broker 2
-  └── Partition 2: [事件4, 事件7, 事件10 ...]         → Broker 3
+```mermaid
+flowchart LR
+    Topic["Topic\nuser-events"] --> P0["Partition 0\n事件1, 2, 5, 8..."]
+    Topic --> P1["Partition 1\n事件3, 6, 9..."]
+    Topic --> P2["Partition 2\n事件4, 7, 10..."]
+    P0 --> B1["Broker 1"]
+    P1 --> B2["Broker 2"]
+    P2 --> B3["Broker 3"]
 ```
 
 **关键概念：**

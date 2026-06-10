@@ -185,27 +185,22 @@
 
 几乎所有系统都包含这些组件，按需取用：
 
-```
-[移动/Web 客户端]
-        ↓
-    [CDN（静态资源）]
-        ↓
-  [DNS 负载均衡]
-        ↓
-  [API Gateway（鉴权/限流/路由）]
-        ↓
-  [Load Balancer]
-        ↓
-[无状态应用服务器集群]
-    /         |         \
-[缓存层]  [主数据库]  [消息队列]
-(Redis)  (MySQL/PG) (Kafka)
-              |           |
-         [从数据库]  [异步处理服务]
-                         |
-                   [搜索索引]
-                   [对象存储]
-                   [分析数据库]
+```mermaid
+flowchart TD
+    Client["移动/Web 客户端"] --> CDN["CDN\n静态资源"]
+    Client --> GW["API Gateway\n鉴权/限流/路由"]
+    CDN --> GW
+    GW --> DNS["DNS 负载均衡"]
+    DNS --> LB["Load Balancer"]
+    LB --> App["无状态应用服务器集群"]
+    App --> Cache["缓存层\nRedis"]
+    App --> DB["主数据库\nMySQL/PG"]
+    App --> MQ["消息队列\nKafka"]
+    DB --> Replica["从数据库"]
+    MQ --> Async["异步处理服务"]
+    Async --> Search["搜索索引"]
+    Async --> ObjStore["对象存储"]
+    Async --> Analytics["分析数据库"]
 ```
 
 ---

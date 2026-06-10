@@ -217,23 +217,24 @@ Tail-based Sampling（尾部采样，更智能）：
 
 ### 为什么需要 Traces
 
-```
-用户请求慢，Metrics 告诉你"P99 = 3s"，但慢在哪里？
+用户请求慢，Metrics 告诉你"P99 = 3s"，但慢在哪里？Trace 告诉你完整调用链的每一步耗时：
 
-微服务调用链：
-  API Gateway → User Service → Order Service → Payment Service
-                                     ↓
-                              → Inventory Service
-  
-  哪一步慢？User Service 的 DB 查询？Payment Service 的外部 API？
+```mermaid
+sequenceDiagram
+    participant GW as API Gateway (5ms)
+    participant US as User Service (10ms)
+    participant OS as Order Service (⚠️ 2800ms)
+    participant IS as Inventory Service (⚠️ 2750ms)
+    participant PS as Payment Service (50ms)
 
-Trace 告诉你完整调用链的每一步耗时：
-  API Gateway: 5ms
-  User Service: 10ms (DB查询: 8ms)
-  Order Service: 2800ms  ← 这里！
-    └── Inventory Service: 2750ms  ← 更具体：这里！
-  Payment Service: 50ms
-  总计: 2865ms
+    GW->>US: 调用
+    US->>OS: 调用（DB查询: 8ms）
+    OS->>IS: 调用 ← 根因在这里
+    IS-->>OS: 响应（索引丢失导致慢查询）
+    OS-->>US: 响应
+    US->>PS: 调用
+    PS-->>GW: 响应
+    Note over GW,PS: 总计 2865ms，瓶颈在 Inventory Service
 ```
 
 ### Span 和 Trace
@@ -299,22 +300,12 @@ SDK（埋点）：
 
 三者相互补充，排查问题时通常这样走：
 
-```
-1. Metrics 触发告警：
-   "Order Service 错误率突然从 0.1% 升到 5%"
-        ↓
-2. Logs 定位具体错误：
-   搜索 level=ERROR AND service=order-service
-   发现：大量 "Connection timeout to inventory-service"
-        ↓
-3. Traces 找到根因：
-   找一条慢请求的 Trace
-   发现：Inventory Service 的某个 DB 查询从平时 5ms 变成 3000ms
-   → DBA 一看：那张表的索引昨晚被误删了
-
-Metrics → 发现问题（What）
-Logs    → 定位问题（Where）
-Traces  → 分析根因（Why）
+```mermaid
+flowchart TD
+    M["① Metrics 触发告警\nOrder Service 错误率 0.1% → 5%\n📊 发现问题（What）"]
+    L["② Logs 定位具体错误\n搜索 level=ERROR AND service=order-service\n发现：大量 Connection timeout to inventory-service\n📋 定位问题（Where）"]
+    T["③ Traces 找到根因\n找慢请求 Trace\nInventory Service DB 查询 5ms → 3000ms\n索引昨晚被误删\n🔍 分析根因（Why）"]
+    M --> L --> T
 ```
 
 **关联的关键：traceId**

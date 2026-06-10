@@ -165,27 +165,26 @@ CDN 加速全球媒体访问
 
 ## 最终架构全景
 
-```
-[客户端]
-    ↓
-[API Gateway + 限流]
-    ↓
-[Write Path]                          [Read Path]
-    ↓                                      ↓
-[Tweet Service]                    [Timeline Service]
-    |                                      |
-    |→ 写推文到 Manhattan（持久化）         |← 读 Redis Timeline 缓存
-    |→ 触发 Fanout Service                 |← 合并大 V 的推文
-    |                                      |← 批量读推文内容（Manhattan）
-[Fanout Service]
-    |
-    |→ 普通用户：写粉丝 Redis Timeline 缓存
-    |→ 大 V：跳过（读时拉取）
-    |→ 消息队列（Kafka）异步处理通知、推荐信号
-    |
-[Search（Earlybird）]← 倒排索引，实时索引新推文（约 15 秒延迟）
-[Trends Service]← 实时热词统计（滑动窗口）
-[Recommendation]← 基于图和内容的推荐
+```mermaid
+flowchart TD
+    Client[客户端] --> GW["API Gateway + 限流"]
+
+    GW --> Write["Write Path\nTweet Service"]
+    GW --> Read["Read Path\nTimeline Service"]
+
+    Write --> Manhattan["写推文到 Manhattan\n（持久化）"]
+    Write --> Fanout["Fanout Service"]
+    Fanout --> NormalRedis["普通用户：\n写粉丝 Redis Timeline 缓存"]
+    Fanout --> VIPSkip["大V：跳过 Fanout\n（读时拉取）"]
+    Fanout --> Kafka["Kafka\n异步：通知/推荐信号"]
+
+    Read --> RedisRead["读 Redis Timeline 缓存"]
+    Read --> VIPFetch["合并大V最新推文\n（实时拉取）"]
+    Read --> Manhattan
+
+    Kafka --> Search["Earlybird（搜索）\n倒排索引 约15s延迟"]
+    Kafka --> Trends["Trends Service\n实时热词（滑动窗口）"]
+    Kafka --> Rec["Recommendation\n基于图和内容推荐"]
 ```
 
 ---
