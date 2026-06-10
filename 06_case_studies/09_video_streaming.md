@@ -154,21 +154,14 @@ Task 3: 转 video_123 → 1080p  (Worker C)
 
 ## CDN 架构
 
-```
-用户 → CDN 边缘节点（距用户最近）
-          ↓ 缓存未命中
-      CDN 区域节点（就近）
-          ↓ 缓存未命中
-      CDN 源站（S3 + 全球加速）
+```mermaid
+flowchart TD
+    User[用户] --> Edge["CDN 边缘节点\n距用户最近"]
+    Edge -->|缓存未命中| Regional["CDN 区域节点"]
+    Regional -->|缓存未命中| Origin["CDN 源站\nS3 + 全球加速"]
 
-视频片段的特点（天然适合 CDN 缓存）：
-  内容不变（转码后的片段是静态文件）
-  可以长期缓存（Cache-Control: max-age=31536000）
-  全球用户看相同视频 → 边缘节点缓存命中率极高
-
-Netflix 的 Open Connect：
-  Netflix 在 ISP 的机房里放专用缓存服务器（Open Connect Appliance）
-  热门视频直接从 ISP 机房分发，带宽成本接近零
+    OCA["Netflix Open Connect\nISP 机房内专用服务器"] -.->|热门视频\n直接分发| User
+    note1["视频片段特点：\n不可变静态文件\nCache-Control: max-age=31536000\n命中率极高"]
 ```
 
 ---

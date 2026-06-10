@@ -170,14 +170,18 @@ Server 1 收到消息，但用户 B 在 Server 2 上
 
 用 Redis Pub/Sub 或消息队列作为服务器间的消息总线：
 
-```
-用户A（连Server1）发消息给用户B
-  ↓
-Server1 把消息发布到 Redis Channel "user_B_messages"
-  ↓
-Server2 订阅了 "user_B_messages"，收到消息
-  ↓
-Server2 通过用户B的 WebSocket 连接发送消息
+```mermaid
+sequenceDiagram
+    participant A as 用户 A
+    participant S1 as WebSocket Server 1
+    participant Redis as Redis Pub/Sub
+    participant S2 as WebSocket Server 2
+    participant B as 用户 B
+
+    A->>S1: 发消息给 B（WebSocket）
+    S1->>Redis: PUBLISH user_B_messages {msg}
+    Redis-->>S2: 推送（S2 订阅了该 Channel）
+    S2->>B: 转发消息（WebSocket）
 ```
 
 ```typescript

@@ -30,16 +30,17 @@
 
 ### 熔断器的三种状态
 
-```
-        故障率超过阈值
-CLOSED ────────────────→ OPEN
-  ↑                        |
-  │ 半开测试成功            │ 超过等待时间
-  │                        ↓
-  └──────────── HALF-OPEN ←┘
-                   │
-                   │ 测试失败
-                   └──→ OPEN
+```mermaid
+stateDiagram-v2
+    [*] --> CLOSED : 初始状态
+    CLOSED --> OPEN : 故障率超过阈值（如 50% 或连续 5 次失败）
+    OPEN --> HALF_OPEN : 等待时间到（如 30 秒）
+    HALF_OPEN --> CLOSED : 探测请求成功
+    HALF_OPEN --> OPEN : 探测请求失败
+
+    CLOSED : CLOSED（关闭）\n请求正常通过，统计失败率
+    OPEN : OPEN（熔断）\n请求立即失败，不调用下游
+    HALF_OPEN : HALF_OPEN（半开）\n少量探测请求通过
 ```
 
 **CLOSED（关闭，正常状态）：**

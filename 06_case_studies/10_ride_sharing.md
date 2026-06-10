@@ -182,30 +182,23 @@ CREATE TABLE driver_locations (
 
 ## 系统架构
 
-```
-[乘客 App]            [司机 App]
-    |                     |
-    | 打车请求              | 位置更新（每 4 秒）
-    |                     |
-[API Gateway]         [位置更新服务]
-    |                     |
-    |              [Redis GEO：drivers:active]
-    |                     |
-[撮合服务]————————查找附近司机—→
-    |
-    ├─ 查找 5km 内空闲司机
-    ├─ 按距离排序
-    ├─ 发送行程请求给最近的司机（WebSocket）
-    ├─ 等待司机接单（超时 10 秒）
-    ├─ 司机拒绝 / 超时 → 尝试下一个司机
-    └─ 司机接单 → 创建 Trip 记录
+```mermaid
+flowchart TD
+    Passenger["乘客 App\n打车请求"] --> GW["API Gateway"]
+    Driver["司机 App\n位置更新（每4秒）"] --> LS["位置更新服务"]
+    LS --> Redis["Redis GEO\ndrivers:active"]
+    GW --> Match["撮合服务"]
+    Redis --> Match
 
-[Trip 服务]
-    ├─ 管理行程状态机
-    └─ 实时位置推送（乘客看司机位置）
+    Match --> M1["查找 5km 内\n空闲司机"]
+    M1 --> M2["按距离排序\n选最近司机"]
+    M2 -->|WebSocket 推送| M3{司机接单?}
+    M3 -- 接单 --> Trip["Trip 服务\n行程状态机"]
+    M3 -- 拒绝/超时 --> M2
 
-[MySQL]（订单、用户、司机数据）
-[Cassandra]（位置历史）
+    Trip --> MySQL["MySQL\n订单/用户/司机数据"]
+    Trip --> Cassandra["Cassandra\n位置历史"]
+    Trip -->|实时位置| Passenger
 ```
 
 ---

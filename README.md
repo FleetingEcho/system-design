@@ -1,6 +1,6 @@
 # 系统设计面试笔记
 
-面向面试的系统设计自学文档。59 篇，覆盖从基础概念到完整系统设计的全链路。
+面向面试的系统设计自学文档。61 篇，覆盖从基础概念到完整系统设计的全链路。
 
 **核心线索**：一个系统在规模变大、节点增多、网络不可靠时，会在哪里崩溃？我们怎么应对？
 
@@ -26,6 +26,7 @@
 | [04 网络基础](01_fundamentals/04_network_basics.md) | TCP/UDP/HTTP；DNS 解析链路；CDN 工作原理；**L4 vs L7 负载均衡；算法；Anycast** |
 | [05 认证与安全](01_fundamentals/05_auth_security.md) | Session vs JWT；OAuth2；SQL 注入 / XSS / CSRF；**API 签名防重放；PII 加密；mTLS；Secret 管理** |
 | [06 微服务与部署](01_fundamentals/06_microservices_deployment.md) | 服务发现；Kubernetes 核心概念；蓝绿/金丝雀部署；API Gateway vs Service Mesh |
+| [07 核心数据结构](01_fundamentals/07_data_structures_for_sd.md) | Bloom Filter / Skip List / LSM Tree / Merkle Tree / B+ Tree — 底层原理与应用场景 |
 
 ---
 
@@ -96,6 +97,7 @@
 | [05 概念关系图](05_methodology/reference/05_concept_map.md) | **10 张 Mermaid 图**：所有概念之间的依赖和关联网络 |
 | [06 面试官评分标准](05_methodology/reference/06_interviewer_rubric.md) | 面试官真正在评的 4 个维度；L4/L5/L6 的差距在哪里；常见失分模式 |
 | [07 技术横向对比速查表](05_methodology/reference/07_tech_comparison.md) | **7 张大表**：消息队列 / 数据库 / 缓存策略 / 通信协议 / LB 算法 / 存储类型 / 一致性模型 |
+| [08 流处理与数据管道](05_methodology/reference/08_data_pipeline.md) | 批处理 vs 流处理；Lambda vs Kappa 架构；Spark 基础；Flink 时间语义 / Watermark / 窗口 |
 
 ---
 

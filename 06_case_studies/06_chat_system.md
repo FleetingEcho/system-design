@@ -63,19 +63,13 @@ WebSocket 连接的维护：
 
 ## 系统架构
 
-```
-[移动/Web 客户端]
-    ↓ WebSocket 长连接
-[WebSocket Chat Server 集群]（有状态！每台维护本台的连接）
-    |
-    ├─ 消息路由（查用户在哪台 Server 上）
-    │    └─ Redis：user_id → server_id（Session Map）
-    |
-    ├─ 消息存储
-    │    └─ Cassandra（按 conversation_id 分区）
-    |
-    └─ 消息 Fanout（群聊）
-         └─ Redis Pub/Sub or Kafka
+```mermaid
+flowchart TD
+    Client["移动/Web 客户端"]
+    Client -->|WebSocket 长连接| WS["WebSocket Chat Server 集群\n有状态：每台维护自己的连接"]
+    WS --> Route["消息路由\nRedis: user_id → server_id"]
+    WS --> Storage["消息存储\nCassandra（按 conversation_id 分区）"]
+    WS --> Fanout["群聊 Fanout\nRedis Pub/Sub or Kafka"]
 ```
 
 ---

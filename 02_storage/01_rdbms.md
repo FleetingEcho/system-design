@@ -35,13 +35,18 @@ MySQL InnoDB 和 PostgreSQL 默认使用 **B+ Tree（B+树）** 索引。
 
 **B+ Tree 的结构：**
 
-```
-                    [50]
-                   /    \
-            [20, 35]    [65, 80]
-           /   |   \    /   |   \
-        [10] [25] [40] [55] [70] [90]
-          ↑ 叶节点，存储实际数据或指向数据的指针，且叶节点之间有链表连接
+```mermaid
+flowchart TD
+    Root["[50]（根节点，仅路由）"]
+    Root --> L["[20, 35]（内部节点）"]
+    Root --> R["[65, 80]（内部节点）"]
+    L --> L1["[10]\n叶节点+data"]
+    L --> L2["[25]\n叶节点+data"]
+    L --> L3["[40]\n叶节点+data"]
+    R --> R1["[55]\n叶节点+data"]
+    R --> R2["[70]\n叶节点+data"]
+    R --> R3["[90]\n叶节点+data"]
+    L1 <-.->|双向链表| L2 <-.-> L3 <-.-> R1 <-.-> R2 <-.-> R3
 ```
 
 **为什么用 B+ Tree 而不是普通二叉树？**
@@ -109,10 +114,15 @@ SELECT * FROM t WHERE a = 1 AND b = 1;  -- 可以用索引
 
 主从复制用一台**主库（Master/Primary）**负责写，多台**从库（Replica/Slave）**负责读：
 
-```
-写请求 → [主库] → 同步数据 → [从库1]
-                            → [从库2]
-读请求 →                    → [从库3]
+```mermaid
+flowchart LR
+    W[写请求] --> Master["主库 Master\n（主写）"]
+    Master -->|Binlog 同步| R1["从库 Replica 1"]
+    Master -->|Binlog 同步| R2["从库 Replica 2"]
+    Master -->|Binlog 同步| R3["从库 Replica 3"]
+    RR[读请求] --> R1
+    RR --> R2
+    RR --> R3
 ```
 
 ### 复制原理：Binlog

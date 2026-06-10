@@ -57,25 +57,20 @@ DAU: 1000 万活跃付款用户
 
 ## 系统架构
 
-```
-[用户/商家客户端]
-    ↓ POST /payments
-[API Gateway]（鉴权、限流、幂等键校验）
-    ↓
-[支付服务]
-    ├─ 幂等性校验（Redis + DB）
-    ├─ 账户余额检查
-    ├─ 写 payment_ledger（资金流水，不可变）
-    ├─ 原子扣款/加款（MySQL 事务）
-    └─ 发 Kafka 事件（异步通知下游）
-         ↓
-    [通知服务] → Webhook 回调商家
-    [对账服务] → 每日与第三方账单核对
-    [风控服务] → 异常交易检测
+```mermaid
+flowchart TD
+    Client["用户/商家客户端"] -->|POST /payments| GW["API Gateway\n鉴权/限流/幂等键校验"]
+    GW --> PS["支付服务"]
+    PS --> IdCheck["幂等性校验\nRedis + DB"]
+    PS --> BalCheck["账户余额检查"]
+    PS --> Ledger["写 payment_ledger\n资金流水（不可变）"]
+    PS --> Debit["原子扣款/加款\nMySQL 事务"]
+    PS --> Kafka["发 Kafka 事件"]
+    Kafka --> Notify["通知服务\nWebhook 回调商家"]
+    Kafka --> Recon["对账服务\n每日与第三方核对"]
+    Kafka --> Risk["风控服务\n异常交易检测"]
 
-[第三方支付渠道]（支付宝、Stripe）
-    ↓ 异步回调
-[支付网关服务]（处理三方回调，更新支付状态）
+    ThirdParty["第三方支付渠道\n支付宝/Stripe"] -->|异步回调| PGW["支付网关服务\n处理三方回调，更新支付状态"]
 ```
 
 ---

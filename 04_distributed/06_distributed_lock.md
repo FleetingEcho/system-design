@@ -192,17 +192,23 @@ ZooKeeper 是一个分布式协调服务，基于 ZAB 协议（类 Paxos），�
 
 **示例（4 个竞争者）：**
 
-```
-节点列表（按序号排）：
-  /locks/order/node-0001  ← 进程A（序号最小，加锁成功）
-  /locks/order/node-0002  ← 进程B（Watch node-0001）
-  /locks/order/node-0003  ← 进程C（Watch node-0002）
-  /locks/order/node-0004  ← 进程D（Watch node-0003）
+```mermaid
+sequenceDiagram
+    participant ZK as ZooKeeper
+    participant A as 进程 A (node-0001)
+    participant B as 进程 B (node-0002)
+    participant C as 进程 C (node-0003)
 
-进程A 执行完毕，删除 node-0001
-→ 进程B 的 Watcher 触发
-→ 进程B 发现自己是最小节点
-→ 进程B 加锁成功
+    Note over A,C: 三个进程竞争锁
+    A->>ZK: 创建 node-0001（最小 → 加锁成功）
+    B->>ZK: 创建 node-0002，Watch node-0001
+    C->>ZK: 创建 node-0003，Watch node-0002
+
+    Note over A: 业务执行完毕
+    A->>ZK: 删除 node-0001
+    ZK-->>B: Watcher 触发！
+    B->>ZK: 检查：node-0002 是最小节点
+    Note over B: 加锁成功，开始执行
 ```
 
 **为什么监听前一个节点，而不是监听根节点？**

@@ -63,10 +63,14 @@ Raft 中每个节点处于以下三种状态之一：
 - **Follower（追随者）**：被动响应，响应 Leader 的请求
 - **Candidate（候选者）**：临时状态，在选举期间出现
 
-```
-正常状态：1 个 Leader + N-1 个 Follower
-Leader 崩溃：Follower 超时，变为 Candidate，发起选举
-选举完成：新 Leader 产生，其余变为 Follower
+```mermaid
+stateDiagram-v2
+    [*] --> Follower : 启动
+    Follower --> Candidate : 心跳超时（150-300ms）
+    Candidate --> Leader : 获得多数票（N/2+1）
+    Candidate --> Follower : 收到更高 Term 的消息
+    Candidate --> Candidate : 超时，重新选举
+    Leader --> Follower : 发现更高 Term（旧 Leader 重新加入）
 ```
 
 ### Leader 选举
@@ -98,22 +102,26 @@ B 开始发心跳，C 收到心跳后恢复 Follower 状态
 
 Raft 的核心工作是让所有节点的**日志（Log）**保持一致：
 
-```
-客户端 → Leader 写入请求：SET x=2
+```mermaid
+sequenceDiagram
+    participant C as 客户端
+    participant L as Leader
+    participant F1 as Follower B
+    participant F2 as Follower C
 
-Leader 的处理：
-1. 把 "SET x=2" 追加到自己的日志（但还未执行）
-2. 并行发送给所有 Follower："追加这条日志"
-3. 等待多数节点（N/2 + 1）确认追加成功
-4. 提交（Commit）：执行 SET x=2，更新状态机
-5. 返回客户端"成功"
-6. 通知 Follower "提交这条日志"，Follower 也执行
-
-       日志：
-Leader: [SET x=1, SET y=3, SET x=2(Committed)]
-  ↓复制
-FollowerB: [SET x=1, SET y=3, SET x=2(Committed)]
-FollowerC: [SET x=1, SET y=3, SET x=2(Committed)]
+    C->>L: SET x=2
+    L->>L: 1. 追加到本地日志（未提交）
+    par 并行复制
+        L->>F1: AppendEntries(SET x=2)
+        L->>F2: AppendEntries(SET x=2)
+    end
+    F1-->>L: 成功 ACK
+    F2-->>L: 成功 ACK
+    Note over L: 多数节点确认 → Commit
+    L->>L: 4. 执行 SET x=2，更新状态机
+    L-->>C: 返回成功
+    L->>F1: 通知 Commit
+    L->>F2: 通知 Commit
 ```
 
 **关键保证：**
@@ -173,20 +181,15 @@ Paxos 是 Leslie Lamport 1989 年提出的共识算法，是所有共识算法�
 
 ## Raft 在实际系统中的应用
 
-```
-etcd（Kubernetes 的元数据存储）
-  └── Raft 实现强一致的 KV 存储
-  └── Kubernetes 用 etcd 存储集群状态，Leader 选举
-
-CockroachDB / TiDB（分布式 SQL 数据库）
-  └── 每个 Range（数据分片）有一个 Raft Group
-  └── 保证分片内的强一致性
-
-TiKV（分布式 KV 存储）
-  └── 基于 Raft 的多副本
-
-Consul（服务发现）
-  └── Raft 保证 Agent 状态一致
+```mermaid
+flowchart TD
+    Raft[Raft 共识算法]
+    Raft --> etcd["etcd\nKubernetes 元数据存储\n强一致 KV"]
+    Raft --> Cockroach["CockroachDB / TiDB\n分布式 SQL 数据库\n每个 Range 一个 Raft Group"]
+    Raft --> TiKV["TiKV\n分布式 KV 存储\n多副本强一致"]
+    Raft --> Consul["Consul\n服务发现\nAgent 状态一致"]
+    etcd --> K8s["Kubernetes\n集群状态 / Leader 选举"]
+    Cockroach --> SQL["分布式 SQL 查询\n跨分片事务（2PC over Raft）"]
 ```
 
 ---

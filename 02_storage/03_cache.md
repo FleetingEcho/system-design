@@ -32,16 +32,23 @@
 ### Cache-Aside（旁路缓存，最常用）
 
 **读取流程：**
-```
-1. 先查缓存
-   ├── 命中（Cache Hit）→ 直接返回
-   └── 未命中（Cache Miss）→ 查数据库 → 写入缓存 → 返回
+
+```mermaid
+flowchart TD
+    A[读请求] --> B{查 Redis 缓存}
+    B -- 命中 Cache Hit --> C[直接返回数据]
+    B -- 未命中 Cache Miss --> D[查数据库]
+    D --> E[写入 Redis 缓存\n设置 TTL]
+    E --> F[返回数据]
 ```
 
 **写入流程：**
-```
-1. 写数据库
-2. 删除（或更新）缓存
+
+```mermaid
+flowchart LR
+    A[写请求] --> B[写数据库]
+    B --> C[删除 Redis 缓存\n不是更新！]
+    C --> D["下次读时\n重新从 DB 加载"]
 ```
 
 **为什么写入时"删除"而不是"更新"缓存？**

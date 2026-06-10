@@ -101,31 +101,27 @@ Fanout 服务：查出 A 的所有粉丝（如 200 人）
 
 ## 详细架构
 
-```
-[发帖流程]
+```mermaid
+flowchart TD
+    subgraph 发帖流程
+        P1[用户发帖 POST /post] --> P2[帖子服务]
+        P2 --> P3["写帖子 DB（MySQL）\npost_id, content, created_at"]
+        P2 --> P4[发消息到 Kafka]
+        P4 --> P5[Fanout Worker]
+        P5 --> P6{发帖者是大V?\n粉丝>1万}
+        P6 -- 是 --> P7[只写大V帖子缓存\n跳过 Fanout]
+        P6 -- 否 --> P8["写入所有粉丝的\nTimeline 缓存（Redis ZSET）"]
+    end
 
-用户发帖 POST /post
-    ↓
-[帖子服务]
-    ├─ 写帖子数据库（MySQL）：post_id, user_id, content, created_at
-    └─ 发消息到 Kafka：{post_id, user_id, timestamp}
-              ↓
-    [Fanout Worker]（消费 Kafka）
-    ├─ 查询发帖者的粉丝列表（粉丝关系数据库）
-    ├─ 如果是大 V（粉丝 > 1 万）→ 跳过 Fanout，只写大 V 帖子缓存
-    └─ 如果是普通用户 → 写入所有粉丝的 Timeline 缓存（Redis）
-
-[读 Feed 流程]
-
-用户读 Feed GET /feed
-    ↓
-[Feed 服务]
-    ├─ 读取 Redis Timeline（缓存里的帖子 ID 列表）
-    ├─ 查出用户关注的大 V 列表
-    ├─ 批量读大 V 的最新帖子（大 V 帖子有单独缓存）
-    ├─ 合并两份帖子 ID，按时间排序，取 Top 20
-    ├─ 批量查帖子内容（Posts 缓存 or 数据库）
-    └─ 返回完整帖子列表（含作者信息、点赞数等）
+    subgraph 读Feed流程
+        R1[用户读 Feed GET /feed] --> R2[Feed 服务]
+        R2 --> R3["读 Redis Timeline\n缓存帖子 ID 列表"]
+        R2 --> R4[查关注的大V列表]
+        R4 --> R5["实时拉取大V\n最新帖子"]
+        R3 --> R6["合并 + 按时间排序\n取 Top 20"]
+        R5 --> R6
+        R6 --> R7["批量查帖子内容\n返回完整列表"]
+    end
 ```
 
 ---
