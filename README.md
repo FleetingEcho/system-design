@@ -1,6 +1,6 @@
 # 系统设计面试笔记
 
-面向面试的系统设计自学文档。50 篇，覆盖从基础概念到完整系统设计的全链路。
+面向面试的系统设计自学文档。59 篇，覆盖从基础概念到完整系统设计的全链路。
 
 **核心线索**：一个系统在规模变大、节点增多、网络不可靠时，会在哪里崩溃？我们怎么应对？
 
@@ -68,6 +68,7 @@
 | [04 容错与弹性](04_distributed/04_fault_tolerance.md) | 熔断器三状态；令牌桶 / 漏桶 / 滑动窗口限流；指数退避；幂等键 |
 | [05 ID 生成](04_distributed/05_id_generation.md) | UUID / DB 自增 / Snowflake / 号段模式；时钟回拨问题 |
 | [06 分布式锁](04_distributed/06_distributed_lock.md) | Redis SETNX + Lua；ZooKeeper 临时顺序节点；Fencing Token 防脑裂 |
+| [07 多地域架构 + RTO/RPO](04_distributed/07_multi_region.md) | Active-Active vs Passive；写冲突解决；GeoDNS；故障切换 Playbook |
 
 ---
 
@@ -94,6 +95,7 @@
 | [04 可观测性](05_methodology/reference/04_observability.md) | Metrics / Logs / Traces 三支柱；SLO 告警；Error Budget；Burn Rate |
 | [05 概念关系图](05_methodology/reference/05_concept_map.md) | **10 张 Mermaid 图**：所有概念之间的依赖和关联网络 |
 | [06 面试官评分标准](05_methodology/reference/06_interviewer_rubric.md) | 面试官真正在评的 4 个维度；L4/L5/L6 的差距在哪里；常见失分模式 |
+| [07 技术横向对比速查表](05_methodology/reference/07_tech_comparison.md) | **7 张大表**：消息队列 / 数据库 / 缓存策略 / 通信协议 / LB 算法 / 存储类型 / 一致性模型 |
 
 ---
 
@@ -146,3 +148,17 @@
 ```
 
 完整的概念关系图（Mermaid 可视化）见 → [05_concept_map.md](05_methodology/reference/05_concept_map.md)
+
+---
+
+## 07 真实公司架构拆解
+
+理解真实系统如何演进，比死记架构图更有价值。每篇聚焦**为什么这么做**，而不是结果是什么。
+
+| 文件 | 公司 | 核心看点 |
+|------|------|---------|
+| [01 Twitter](07_real_world/01_twitter.md) | Twitter / X | 推拉混合 Fanout；Timeline 预计算；Snowflake ID；大 V 问题演进 |
+| [02 Uber](07_real_world/02_uber.md) | Uber / 滴滴 | H3 六边形索引；ETA 匹配；CAS 防双派；动态定价流处理 |
+| [03 Netflix](07_real_world/03_netflix.md) | Netflix | Open Connect 自建 CDN；预推送；HLS 自适应码率；混沌工程 |
+| [04 Discord](07_real_world/04_discord.md) | Discord | MongoDB→Cassandra→ScyllaDB 迁移；SFU 语音；大群 Fanout 分片 |
+| [05 WhatsApp](07_real_world/05_whatsapp.md) | WhatsApp | Erlang 200 万连接/台；E2EE Signal Protocol；消息不持久化设计 |
