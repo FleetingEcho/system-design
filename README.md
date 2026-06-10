@@ -23,8 +23,9 @@
 | [01 度量体系](01_fundamentals/01_metrics.md) | Latency / Throughput / Availability；SLA/SLO/SLI；P99 vs 平均值 |
 | [02 CAP 定理](01_fundamentals/02_cap_theorem.md) | 分区时只能选 C 或 A；CP vs AP 系统举例；PACELC 扩展 |
 | [03 ACID 与 BASE](01_fundamentals/03_acid_base.md) | 事务四特性；BASE 的含义；两者适用场景 |
-| [04 网络基础](01_fundamentals/04_network_basics.md) | TCP/UDP/HTTP；DNS 解析链路；CDN 工作原理 |
-| [05 认证与安全](01_fundamentals/05_auth_security.md) | Session vs JWT；OAuth2 授权码流程；SQL 注入 / XSS / CSRF 防御 |
+| [04 网络基础](01_fundamentals/04_network_basics.md) | TCP/UDP/HTTP；DNS 解析链路；CDN 工作原理；**L4 vs L7 负载均衡；算法；Anycast** |
+| [05 认证与安全](01_fundamentals/05_auth_security.md) | Session vs JWT；OAuth2；SQL 注入 / XSS / CSRF；**API 签名防重放；PII 加密；mTLS；Secret 管理** |
+| [06 微服务与部署](01_fundamentals/06_microservices_deployment.md) | 服务发现；Kubernetes 核心概念；蓝绿/金丝雀部署；API Gateway vs Service Mesh |
 
 ---
 
@@ -81,6 +82,7 @@
 | [01 面试框架](05_methodology/design_process/01_framework.md) | 45 分钟时间分配；各阶段该说什么；如何主动引导讨论 |
 | [02 容量估算](05_methodology/design_process/02_capacity_estimation.md) | QPS / 存储 / 带宽的估算公式；常用数量级记忆 |
 | [03 权衡分析](05_methodology/design_process/03_tradeoff_analysis.md) | 如何结构化地表达"我选 A 而不是 B，因为..." |
+| [04 反模式与被追问应对](05_methodology/design_process/04_antipatterns_and_followup.md) | 7 个高频反模式；4 类追问的标准应对框架；面试前速查清单 |
 
 ### 参考速查
 
@@ -121,6 +123,7 @@
 | [14 支付系统](06_case_studies/14_payment_system.md) | Stripe / 支付宝 | 幂等键；复式记账 Ledger；Webhook 处理；对账 |
 | [15 附近搜索](06_case_studies/15_proximity_service.md) | Yelp / 大众点评 | Geohash 9 格查询；静态 POI vs 动态位置；地理分片 |
 | [16 酒店预订](06_case_studies/16_hotel_reservation.md) | Booking.com | 库存并发防超卖；乐观锁 vs 悲观锁；Saga 取消补偿 |
+| [17 协同文档编辑](06_case_studies/17_collaborative_editor.md) | Google Docs | OT vs CRDT；WebSocket 实时同步；光标 ID；离线合并；版本历史 |
 
 ---
 

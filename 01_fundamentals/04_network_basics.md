@@ -359,6 +359,191 @@ module.exports = {
 
 ---
 
+## 负载均衡深度
+
+### L4 vs L7 负载均衡
+
+负载均衡器按工作的网络层分两类，选错会在面试中被追问。
+
+**L4 负载均衡（传输层，Transport Layer）**
+
+```
+工作在 TCP/UDP 层，只看 IP 地址 + 端口，不解析 HTTP 内容
+
+客户端 → L4 LB（只看 IP:Port）→ 后端服务器
+
+特点：
+  - 速度极快：不解析 payload，内核态转发，可达百万 QPS
+  - 对任意协议透明：TCP、UDP、WebSocket、gRPC 都能转发
+  - 无法做内容路由：不能按 URL 路径、HTTP Header 分流
+  - 连接保持：TCP 连接建立后，这条连接内的所有包都路由到同一台后端
+             （做不到请求级别的负载均衡）
+
+适用：
+  - 纯性能要求（游戏服务器、DNS）
+  - 非 HTTP 协议
+  - 作为 L7 LB 的前置（接受公网 TCP，再转 L7）
+
+代表产品：AWS NLB、LVS、HAProxy（L4 模式）
+```
+
+**L7 负载均衡（应用层，Application Layer）**
+
+```
+工作在 HTTP/HTTPS 层，能解析请求内容
+
+客户端 → L7 LB（解析 HTTP Header、URL）→ 后端服务器
+
+特点：
+  - 内容路由：
+      /api/*  → API 服务集群
+      /static/* → 静态资源服务器
+      Host: admin.example.com → 管理后台
+  - SSL 终止：L7 LB 解密 HTTPS，后端走 HTTP（减少后端 CPU 开销）
+  - Header 操作：添加/删除/修改 HTTP Header（如添加 X-Real-IP）
+  - 健康检查：能发 HTTP 请求检查后端，比 L4 的 TCP ping 更准确
+  - Sticky Session：基于 Cookie 把同一用户路由到同一后端
+  - 流量分割：按百分比分流（金丝雀发布）
+  - 代价：性能不如 L4（需要解析 HTTP，用户态处理）
+
+适用：
+  - 绝大多数 Web 应用
+  - 需要内容路由的微服务网关
+
+代表产品：nginx、AWS ALB、Envoy、Traefik
+```
+
+**实际架构：L4 + L7 组合**
+
+```
+互联网
+  ↓
+[L4 NLB] ← 处理 TCP 连接，性能极高，DDoS 防护
+  ↓
+[L7 ALB/nginx] ← 处理 HTTP 路由、SSL 终止、限流
+  ↓
+[后端服务集群]
+```
+
+---
+
+### 负载均衡算法
+
+| 算法 | 原理 | 适用场景 | 问题 |
+|------|------|---------|------|
+| **轮询（Round Robin）** | 依次分配给每台服务器 | 请求处理时间均匀 | 忽略服务器性能差异 |
+| **加权轮询（Weighted RR）** | 按权重分配（高性能机器多分） | 服务器配置不同 | 权重需手动维护 |
+| **最少连接（Least Connections）** | 分配给当前连接数最少的服务器 | 长连接（WebSocket、数据库连接） | 新服务器会被瞬间打满 |
+| **IP Hash** | 按客户端 IP 的 Hash 固定路由 | 需要 Sticky Session 但无 Cookie | NAT 后所有用户打同一台 |
+| **随机（Random）** | 随机选择 | 简单场景，节点同质 | 可能不均匀 |
+
+**实际推荐：**
+```
+无状态服务（API 服务）→ 轮询 or 最少连接
+有状态服务（WebSocket 聊天）→ IP Hash or Cookie-based Sticky
+性能差异大 → 加权轮询
+```
+
+---
+
+### Sticky Session（会话粘性）
+
+```
+问题：某些服务在服务器本地存了状态（如上传进度、WebSocket 连接），
+      如果下一个请求路由到另一台服务器，状态丢失。
+
+解决方案一：Cookie-based Sticky（L7 LB）
+  LB 给用户设置一个 Cookie（如 SERVERID=server-3）
+  后续请求带这个 Cookie → LB 路由到 server-3
+  
+  问题：server-3 挂了，这些用户的会话失效
+  
+解决方案二：集中式状态存储（推荐）
+  服务器本身无状态，状态存到 Redis 或数据库
+  任何服务器都能处理任何请求
+  这是最佳实践：水平扩展无障碍，服务器挂了无影响
+  
+  结论：设计时应尽量把服务做成无状态（Stateless），避免依赖 Sticky Session
+```
+
+---
+
+### 健康检查与连接排除
+
+**健康检查**
+
+```
+LB 定期检查后端实例是否健康：
+
+L4 健康检查（TCP 探测）：
+  尝试建立 TCP 连接，连接成功 = 健康
+  快，但粗糙——进程还在但逻辑已崩溃时无法发现
+
+L7 健康检查（HTTP 探测）：
+  GET /health → 期望返回 200 OK
+  后端代码在 /health 里检查数据库连接、内存等
+  更准确，推荐做法
+  
+  实现示例：
+    GET /health
+    返回：{ "status": "ok", "db": "connected", "latency_ms": 2 }
+    或：503 Service Unavailable（主动告知不健康）
+```
+
+**连接排除（Connection Draining）**
+
+```
+问题：服务器下线时，正在处理中的请求不能直接中断
+
+解决：
+  1. LB 停止把新请求路由到该实例
+  2. 等待该实例处理完已有请求（有超时上限，如 30 秒）
+  3. 超时后强制关闭
+
+K8s 中：
+  Pod 收到 SIGTERM → 不再接受新请求 → 处理完在途请求 → 退出
+  preStop hook 可以在 SIGTERM 前做一些清理
+```
+
+---
+
+### BGP Anycast（全球流量调度）
+
+```
+场景：全球用户都访问同一个 IP（如 1.1.1.1），
+      如何让上海用户打到上海节点，纽约用户打到纽约节点？
+
+BGP Anycast：
+  多个地理位置不同的服务器宣告同一个 IP 地址
+  BGP 路由协议把用户的请求自动路由到"网络拓扑上最近"的节点
+
+  上海用户 → BGP 路由 → 上海节点（1.1.1.1）
+  纽约用户 → BGP 路由 → 纽约节点（同一个 1.1.1.1）
+
+用途：
+  - DNS 服务器（Cloudflare 1.1.1.1 就是 Anycast）
+  - DDoS 防护（攻击流量被分散到多个节点）
+  - 全球 CDN 边缘节点路由
+
+与 DNS 负载均衡的区别：
+  DNS LB：返回不同的 IP（用户解析到不同 IP）
+  Anycast：同一个 IP，由网络层路由到不同节点（对用户透明）
+```
+
+---
+
+### 面试常见问答（负载均衡）
+
+**Q：你的聊天系统里有 WebSocket 连接，加了负载均衡后怎么处理？**
+
+A：WebSocket 是长连接，连接建立后需要保持到同一台 Chat Server。在 L7 LB 层配置基于 Cookie 或 Connection ID 的 Sticky Session，确保同一个 WebSocket 连接的所有数据包到同一台服务器。更好的做法是让 Chat Server 无状态——WebSocket 连接状态存入 Redis，这样任何 Chat Server 实例都能处理同一用户的消息，LB 可以自由路由，不需要 Sticky。
+
+**Q：L4 和 L7 负载均衡如何选？**
+
+A：取决于需求：如果只需要 TCP 转发、追求极高性能（百万 QPS），用 L4；如果需要基于 URL 的内容路由、SSL 终止、HTTP Header 操作、更准确的健康检查，用 L7。生产中两者常组合使用：公网入口用 L4 NLB 处理 TCP 和 DDoS，内部再用 L7 nginx/ALB 做 HTTP 路由和 SSL 终止。
+
+---
+
 ## 面试常见问答
 
 ### 简单

@@ -513,8 +513,246 @@ A: 分层设计：
 
 ---
 
+## 安全性设计进阶
+
+### API 签名防重放攻击
+
+普通的 API Key 无法防重放（Replay Attack）：攻击者截获合法请求，原封不动地重发。
+
+```
+攻击场景：
+  用户发出转账请求 → 攻击者截获 → 反复重发 → 用户被多次扣款
+
+防御：API 签名（Signature + Timestamp + Nonce）
+```
+
+**签名方案**：
+
+```
+每个请求携带：
+  X-Api-Key:   用户的 API Key（标识身份）
+  X-Timestamp: 当前 Unix 时间戳（秒）
+  X-Nonce:     随机字符串（每次请求唯一）
+  X-Signature: HMAC-SHA256(secret, method + path + timestamp + nonce + body)
+
+服务端验证：
+  1. 验证 timestamp 是否在 ±5 分钟以内（超时拒绝，防重放时间窗口）
+  2. 检查 Redis 中 nonce 是否已用过（存 TTL=10分钟；已存在则拒绝）
+  3. 用相同算法重新计算 signature，与请求中的比对
+
+效果：
+  - Timestamp 保证 5 分钟后签名失效
+  - Nonce 保证同一窗口内不能重放
+  - HMAC 保证 secret 不泄露时无法伪造
+```
+
+**实现示例：**
+
+```typescript
+// 客户端生成签名
+function signRequest(secret: string, method: string, path: string, body: string) {
+  const timestamp = Math.floor(Date.now() / 1000).toString();
+  const nonce = crypto.randomUUID();
+  const payload = `${method}\n${path}\n${timestamp}\n${nonce}\n${body}`;
+  const signature = crypto.createHmac('sha256', secret).update(payload).digest('hex');
+  return { timestamp, nonce, signature };
+}
+
+// 服务端验证
+async function verifySignature(req) {
+  const { timestamp, nonce, signature } = req.headers;
+  
+  // 1. 时间窗口检查（±5分钟）
+  const now = Math.floor(Date.now() / 1000);
+  if (Math.abs(now - parseInt(timestamp)) > 300) throw new Error('Timestamp expired');
+  
+  // 2. Nonce 去重（Redis）
+  const nonceKey = `nonce:${nonce}`;
+  const exists = await redis.set(nonceKey, '1', 'EX', 600, 'NX');
+  if (!exists) throw new Error('Nonce already used');
+  
+  // 3. 签名验证
+  const payload = `${req.method}\n${req.path}\n${timestamp}\n${nonce}\n${req.rawBody}`;
+  const expected = crypto.createHmac('sha256', apiSecret).update(payload).digest('hex');
+  if (signature !== expected) throw new Error('Invalid signature');
+}
+```
+
+---
+
+### 数据加密：传输层 vs 存储层
+
+```
+两个独立的加密问题，经常被混淆：
+
+传输层加密（Encryption in Transit）：
+  数据在网络中传输时加密
+  方案：TLS（HTTPS / gRPC / mTLS）
+  保护什么：中间人不能读取或篡改传输中的数据
+
+存储层加密（Encryption at Rest）：
+  数据在磁盘上静止时加密
+  方案：数据库透明加密（TDE）/ 应用层 AES 加密 / 磁盘加密
+  保护什么：数据库被盗、磁盘丢失时，数据不可读
+
+两者都要做：
+  不加传输层加密：中间人可以抓包读数据
+  不加存储层加密：磁盘被偷或内部人员直接读 DB 可以看到明文
+```
+
+**什么数据需要应用层加密（而不只是 TDE）：**
+
+```
+TDE（数据库透明磁盘加密）保护磁盘丢失，但 DBA 仍然能看到明文数据。
+对于极度敏感的数据（信用卡、身份证、密钥），需要应用层加密：
+  - 数据在写入数据库前，应用代码用 AES-256 加密
+  - 数据从数据库读出后，应用代码解密
+  - DBA 直接查 DB 看到的是密文
+
+密钥管理：
+  加密密钥存储在独立的密钥管理服务（KMS，如 AWS KMS / HashiCorp Vault）
+  不能和数据存在同一个系统里（否则"门和钥匙放在一起"）
+  
+  密钥轮换（Key Rotation）：
+    定期更换加密密钥
+    旧密钥解密历史数据，新密钥加密新数据
+    需要有完整的密钥版本管理
+```
+
+---
+
+### PII 数据处理（GDPR / 用户隐私）
+
+**PII（Personal Identifiable Information，个人可识别信息）** 包括：姓名、手机号、邮箱、身份证、位置、IP 地址（某些法律）。
+
+```
+核心原则：
+  最小化（Minimization）：只收集业务必需的数据，不收集冗余 PII
+  隔离（Isolation）：PII 单独存储，与普通业务数据分离
+  访问控制：只有明确需要的角色能访问 PII
+  审计（Audit）：谁在什么时候访问了什么 PII，全部记录
+
+技术实现：
+
+  1. 脱敏展示：
+     手机号在前端展示为 138****8888
+     应用层脱敏（从 DB 读到真实值，展示时掩码），不要存脱敏后的值
+
+  2. 数据分离存储：
+     普通表：user_id, username, avatar_url, created_at
+     PII 表：user_id, phone_encrypted, email_encrypted, id_card_encrypted
+     → 大多数查询不需要 JOIN PII 表，减少暴露面
+
+  3. 右被遗忘（GDPR Article 17）：
+     用户注销时，删除或匿名化其 PII
+     但保留不含 PII 的聚合统计数据（如"这天有 1000 个用户注册"）
+     实现：软删除 + 定期 PII 清理 Job
+     
+  4. 数据跨境传输：
+     GDPR：欧盟用户数据不能随意传到欧盟以外
+     实现：按用户地区分区存储（EU 用户数据存 EU 区域）
+```
+
+---
+
+### mTLS（服务间双向认证）
+
+```
+问题：服务 A 调用服务 B，B 怎么确认请求真的来自 A，而不是内网的其他恶意服务？
+
+mTLS（Mutual TLS）：双向证书认证
+
+普通 TLS（HTTPS）：
+  客户端验证服务器的证书 → 确认连的是真服务器
+  服务器不验证客户端
+
+mTLS：
+  客户端也出示自己的证书 → 服务器验证客户端的身份
+  双向认证，只有持有有效证书的服务才能通信
+  
+实现：
+  内部 CA（Certificate Authority）签发服务证书
+  每个微服务有自己的证书（cert + private key）
+  互相调用时验证对方的证书是否由内部 CA 签发
+
+谁来做：
+  手动管理证书复杂 → Service Mesh（Istio）自动管理 mTLS
+  Istio 自动给每个 Pod 注入证书，自动轮换，对业务代码透明
+  
+什么场景用：
+  金融、医疗等高安全要求的服务间通信
+  零信任架构（Zero Trust）：内网也不信任，所有调用都要认证
+```
+
+---
+
+### Secret 管理
+
+```
+常见错误：
+  ❌ 把密钥写死在代码里（git 提交后泄露）
+  ❌ 存在环境变量里但不加密（CI/CD 日志里可能出现）
+  ❌ 所有服务共用同一套密钥（一个泄露全泄露）
+
+正确做法：
+
+  1. 开发阶段：
+     .env 文件存本地（不 commit）
+     .gitignore 里加 .env、*.pem、*.key
+     
+  2. 生产阶段（推荐方案）：
+     HashiCorp Vault 或 AWS Secrets Manager
+     - 密钥加密存储
+     - 动态生成数据库密码（每次连接获取临时凭证，自动过期）
+     - 完整的访问审计日志
+     - 支持自动轮换
+     
+  3. Kubernetes 中：
+     K8s Secret（base64 编码，不是真正的加密，需配合 etcd 加密）
+     + External Secrets Operator（从 Vault/AWS SM 同步到 K8s Secret）
+
+  4. 密钥轮换策略：
+     定期轮换（每 90 天）
+     泄露时立即轮换
+     用版本号标记密钥（key-v1, key-v2），方便灰度切换
+```
+
+---
+
+### 安全性设计的面试表达框架
+
+面试官问"这个系统的安全如何设计"，按这个框架回答（30~60 秒）：
+
+```
+"安全设计我从五个层次来考虑：
+
+1. 传输安全：全部 HTTPS/TLS，服务间用 mTLS（或由 Service Mesh 统一处理）
+
+2. 认证与身份：
+   用户侧：JWT（短有效期 15 分钟 + Refresh Token）
+   服务侧：mTLS 证书 / API 签名（HMAC-SHA256，防重放）
+
+3. 授权：RBAC，最小权限原则；
+   数据库查询带 tenant_id 过滤（多租户场景）
+
+4. 数据保护：
+   密码：bcrypt 存 Hash
+   敏感 PII（手机号、身份证）：AES-256 加密存储，密钥在 KMS 管理
+   传输和存储都加密
+
+5. 攻击防御：
+   SQL 注入：ORM 或参数化查询
+   XSS：输出转义 + CSP Header + HttpOnly Cookie
+   CSRF：SameSite Cookie + CSRF Token
+   暴力破解：登录限速 + 账号锁定
+   重放攻击：Timestamp + Nonce + 签名（对 Open API 场景）"
+```
+
+---
+
 ## 关联文档
 
 - [../04_distributed/04_fault_tolerance.md](../04_distributed/04_fault_tolerance.md) — 限流（登录限速）
 - [../03_communication/01_sync.md](../03_communication/01_sync.md) — API Gateway（统一鉴权入口）
-- [../02_rate_limiter.md](../06_case_studies/02_rate_limiter.md) — 接口限流防暴力破解
+- [../06_case_studies/02_rate_limiter.md](../06_case_studies/02_rate_limiter.md) — 接口限流防暴力破解
+- [06_microservices_deployment.md](06_microservices_deployment.md) — mTLS 在 Service Mesh 中的实现
