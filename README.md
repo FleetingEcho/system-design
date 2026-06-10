@@ -1,6 +1,6 @@
 # 系统设计面试笔记
 
-面向面试的系统设计自学文档。47 篇，覆盖从基础概念到完整系统设计的全链路。
+面向面试的系统设计自学文档。50 篇，覆盖从基础概念到完整系统设计的全链路。
 
 **核心线索**：一个系统在规模变大、节点增多、网络不可靠时，会在哪里崩溃？我们怎么应对？
 
@@ -106,7 +106,7 @@
 | 文件 | 系统 | 核心考点 |
 |------|------|---------|
 | [00 面试套路](06_case_studies/00_interview_patterns.md) | — | 各类题型的通用解题模板 |
-| [00 空白练习模板](06_case_studies/00_practice_mode.md) | 全部 16 题 | **主动回忆用**，只有问题没有答案 |
+| [00 空白练习模板](06_case_studies/00_practice_mode.md) | 全部 17 题 | **主动回忆用**，只有问题没有答案 |
 | [01 URL 短链](06_case_studies/01_url_shortener.md) | bit.ly | 短码生成（哈希 vs 计数器）；301 vs 302；DB 分片 |
 | [02 限流器](06_case_studies/02_rate_limiter.md) | API Gateway | 令牌桶 / 滑动窗口；Redis Lua；多数据中心 |
 | [03 搜索自动补全](06_case_studies/03_search_autocomplete.md) | Google 搜索框 | Trie 结构；top-K 缓存；实时 vs 批量更新 |
