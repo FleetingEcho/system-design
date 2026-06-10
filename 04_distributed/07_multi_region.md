@@ -49,66 +49,71 @@ RTO（Recovery Time Objective）= 系统恢复时间 - 故障发生时间
 
 ### 模式一：单地域多可用区（Single Region, Multi-AZ）
 
+```mermaid
+flowchart LR
+    subgraph Region["Region（如 us-east-1）"]
+        subgraph AZa["AZ-a"]
+            Sa[服务] & DBM[DB 主]
+        end
+        subgraph AZb["AZ-b"]
+            Sb[服务] & DBR1[DB 从]
+        end
+        subgraph AZc["AZ-c"]
+            Sc[服务] & DBR2[DB 从]
+        end
+    end
+    DBM -->|同步复制 ~1ms| DBR1 --> DBR2
 ```
-                   Region（如 us-east-1）
-    ┌──────────────────────────────────────┐
-    │  AZ-a          AZ-b          AZ-c   │
-    │  [服务]        [服务]        [服务]  │
-    │  [DB 主]  →→  [DB 从]  →→  [DB 从]  │
-    └──────────────────────────────────────┘
 
-特点：
-  - 抵御：单台机器故障、单个机房故障（电源、网络）
-  - 无法抵御：整个 Region 故障（极少见，但发生过：AWS us-east-1 大规模故障）
-  - 延迟：AZ 间约 1~2ms，同步复制影响小
-  - 实现简单：大多数云服务默认支持
+特点：抵御单机/单 AZ 故障；AZ 间延迟约 1~2ms，同步复制影响小；实现简单，大多数云服务默认支持。无法抵御整个 Region 故障。
 
-适合：99.99% 可用性目标，预算有限
-```
+适合：99.99% 可用性目标，预算有限。
 
 ### 模式二：主备地域（Active-Passive / Warm Standby）
 
+```mermaid
+flowchart LR
+    Traffic[用户流量] -->|正常| PrimaryRegion
+    Traffic -.->|故障切换 DNS| StandbyRegion
+
+    subgraph PrimaryRegion["主 Region（us-east-1）"]
+        LB1[LB] --> App1[应用服务器]
+        App1 --> DBP[DB 主]
+    end
+    subgraph StandbyRegion["备 Region（us-west-2）"]
+        LB2["LB（平时不接流量）"] --> App2[应用服务器]
+        App2 --> DBS[DB 从]
+    end
+    DBP -->|单向异步复制| DBS
 ```
-  主 Region（us-east-1）         备 Region（us-west-2）
-  ┌─────────────────────┐        ┌──────────────────────┐
-  │  [LB]               │        │  [LB]（平时不接流量） │
-  │  [应用服务器]        │  →→→  │  [应用服务器]         │
-  │  [DB 主]            │  同步  │  [DB 从]              │
-  └─────────────────────┘        └──────────────────────┘
-       ↑ 正常流量                      ↑ 故障时切换
 
-切换方式：修改 DNS 指向备 Region（TTL 要提前降低）
+切换方式：修改 DNS 指向备 Region（TTL 要提前降低）。
 
-变体：
-  Hot Standby：备 Region 随时准备好，切换时间分钟级
-  Warm Standby：备 Region 只跑最小规模，故障时扩容再切，切换时间 10~30 分钟
-  Cold Standby：备 Region 只有数据备份，故障时重建整个环境，切换时间小时级
-
-RTO：分钟~小时级（取决于变体）
-RPO：秒~分钟级（取决于复制延迟）
-成本：备 Region 的资源基本闲置（Warm/Cold 可节省成本）
-```
+| 变体 | 备 Region 状态 | 切换时间 |
+|------|-----------|--------|
+| Hot Standby | 全量运行，随时就绪 | 分钟级 |
+| Warm Standby | 最小规模，故障时扩容 | 10~30 分钟 |
+| Cold Standby | 只有数据备份，需重建环境 | 小时级 |
 
 ### 模式三：主主地域（Active-Active）
 
-```
-  Region A（美国）              Region B（欧洲）
-  ┌─────────────────────┐       ┌─────────────────────┐
-  │  [LB]               │       │  [LB]               │
-  │  [应用服务器]        │  ←→  │  [应用服务器]        │
-  │  [DB]               │ 双向  │  [DB]               │
-  └─────────────────────┘ 复制  └─────────────────────┘
-       ↑ 美国用户                    ↑ 欧洲用户
+```mermaid
+flowchart LR
+    USUser[美国用户] -->|GeoDNS| RegionA
+    EUUser[欧洲用户] -->|GeoDNS| RegionB
 
-特点：
-  - 两个 Region 同时接受读写流量
-  - 用户路由到最近的 Region（GeoDNS / Anycast）
-  - 故障时：把故障 Region 的流量切到健康 Region
-
-RTO：秒级（DNS 切换）或毫秒级（Anycast）
-RPO：接近 0（两端都在写，复制延迟就是 RPO）
-代价：双向写入带来的冲突问题（核心难点）
+    subgraph RegionA["Region A（美国）"]
+        LBA[LB] --> AppA[应用服务器]
+        AppA --> DBA[DB]
+    end
+    subgraph RegionB["Region B（欧洲）"]
+        LBB[LB] --> AppB[应用服务器]
+        AppB --> DBB[DB]
+    end
+    DBA <-->|双向异步复制| DBB
 ```
+
+两个 Region 同时接受读写；故障时把流量切到健康 Region。RTO 秒级（DNS 切换）或毫秒级（Anycast）；RPO 接近 0；核心难点是双向写入的冲突问题。
 
 ---
 

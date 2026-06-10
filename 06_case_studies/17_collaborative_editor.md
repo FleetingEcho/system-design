@@ -226,21 +226,14 @@ Tombstone 积累：删除的字符节点永远保留（逻辑删除），文档�
 
 ### 客户端状态机
 
-```
-                    本地操作
-                      ↓
-                [本地应用 + 入队]
-                      ↓
-              [发送到服务器（带 rev）]
-                      ↓
-              [等待 ACK or 服务端广播]
-                      ↓
-         ┌────────────────────────────┐
-         │ 收到他人操作                │
-         │  → CRDT merge              │
-         │  → 更新本地文档             │
-         │  → 重新渲染光标位置         │
-         └────────────────────────────┘
+```mermaid
+stateDiagram-v2
+    [*] --> LocalApply : 本地操作
+    LocalApply --> SendToServer : 应用到本地 + 入队
+    SendToServer --> WaitACK : 发送（带 revision 号）
+    WaitACK --> MergeRemote : 收到他人操作广播
+    MergeRemote --> LocalApply : CRDT merge + 更新光标位置
+    WaitACK --> LocalApply : 收到 ACK，处理队列中的下一个操作
 ```
 
 ### 光标同步

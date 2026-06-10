@@ -151,27 +151,19 @@ BM25 公式（简化版）：
 
 ## 系统架构
 
-```
-[写入路径]
+```mermaid
+flowchart LR
+    subgraph 写入路径
+        Pub["新内容发布\nBlog/商品/新闻"] --> DB["主数据库\nMySQL/MongoDB"]
+        DB -->|CDC / Kafka| Indexer["索引构建服务\n分词 → 倒排索引"]
+        Indexer --> ES["Elasticsearch 集群"]
+    end
 
-新内容发布（Blog/商品/新闻）
-    ↓
-[主数据库（MySQL/MongoDB）]
-    ↓ CDC（Change Data Capture）/ Kafka
-[索引构建服务]
-    ↓ 分词 → 构建倒排索引
-[Elasticsearch 集群]
-
-[读取路径]
-
-用户搜索请求
-    ↓
-[搜索 API 服务]
-    ├─ 分词（query 分词）
-    ├─ Elasticsearch 查询（倒排索引查询 + BM25 打分）
-    ├─ 过滤（时间/分类/状态）
-    ├─ 排序（相关性 + 质量信号）
-    └─ 返回（摘要截取 + 关键词高亮）
+    subgraph 读取路径
+        User[用户搜索请求] --> API["搜索 API 服务"]
+        API --> ES
+        API --> Result["返回结果\n摘要截取 + 关键词高亮"]
+    end
 ```
 
 ---

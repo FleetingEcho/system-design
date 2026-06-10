@@ -276,24 +276,15 @@ X-RateLimit-Reset: 1733000060
 
 ## 系统架构图
 
-```
-客户端请求
-    ↓
-[API Gateway] ← 第一层：IP 级别限流（防 DDoS）
-    ↓
-[Rate Limiter Middleware]
-    ├─→ Redis Cluster（获取/更新计数）
-    │      ├─ Key: "rl:user:{id}:minute"
-    │      ├─ Key: "rl:ip:{ip}:second"
-    │      └─ Key: "rl:apikey:{key}:hour"
-    ↓ 通过
-[业务服务]
-    ↓
-响应
-
-超限时：
-    ↓ 拒绝
-429 + Retry-After Header
+```mermaid
+flowchart TD
+    Client[客户端请求] --> GW["API Gateway\n第一层：IP 级别限流（防DDoS）"]
+    GW --> RL["Rate Limiter Middleware"]
+    RL --> Redis["Redis Cluster\nrl:user:{id}:minute\nrl:ip:{ip}:second\nrl:apikey:{key}:hour"]
+    Redis --> Check{限流检查}
+    Check -- 通过 --> Biz[业务服务]
+    Biz --> Resp[响应]
+    Check -- 超限 --> Reject["429 Too Many Requests\n+ Retry-After Header"]
 ```
 
 ---

@@ -39,30 +39,27 @@
 
 ## 系统架构
 
-```
-触发源
-  ├─ 业务服务（下单成功、登录告警）
-  ├─ 营销系统（定时推送活动）
-  └─ 管理后台（手动发送）
-           ↓
-    [通知 API 服务]
-    ├─ 验证用户偏好
-    ├─ 路由到对应渠道
-    └─ 写入消息队列
-           ↓
-    [Kafka Topic 分渠道]
-    ├─ topic: push_notifications
-    ├─ topic: sms_notifications
-    ├─ topic: email_notifications
-    └─ topic: inapp_notifications
-           ↓
-    [各渠道 Worker 集群]
-    ├─ Push Worker → APNs / FCM
-    ├─ SMS Worker  → 短信服务商（阿里云、Twilio）
-    ├─ Email Worker → 邮件服务商（SendGrid、SES）
-    └─ InApp Worker → 写入通知数据库
-           ↓
-    [通知记录数据库]（写入发送记录，用于去重）
+```mermaid
+flowchart TD
+    Src1[业务服务\n下单成功/登录告警] --> API
+    Src2[营销系统\n定时推送] --> API
+    Src3[管理后台\n手动发送] --> API
+
+    API["通知 API 服务\n验证偏好 / 路由渠道"] --> Kafka
+
+    subgraph Kafka["Kafka Topics"]
+        T1[push_notifications]
+        T2[sms_notifications]
+        T3[email_notifications]
+        T4[inapp_notifications]
+    end
+
+    T1 --> W1["Push Worker\n→ APNs / FCM"]
+    T2 --> W2["SMS Worker\n→ 阿里云/Twilio"]
+    T3 --> W3["Email Worker\n→ SendGrid/SES"]
+    T4 --> W4["InApp Worker\n→ 通知数据库"]
+
+    W1 & W2 & W3 & W4 --> DB["通知记录 DB\n发送记录 / 去重"]
 ```
 
 ---

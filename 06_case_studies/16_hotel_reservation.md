@@ -318,25 +318,27 @@ TTL: 2 分钟
 
 ## 系统架构
 
-```
-[用户搜索]
-    ↓
-[搜索服务]
-    ├─ 查 Redis 缓存（搜索结果缓存）
-    │    ↓ 未命中
-    └─ 查 MySQL（GROUP BY + HAVING 聚合查询）
+```mermaid
+flowchart TD
+    subgraph 搜索路径
+        S1[用户搜索] --> SS["搜索服务"]
+        SS --> RC{Redis 缓存}
+        RC -- 命中 --> SR[返回结果]
+        RC -- 未命中 --> MySQL["MySQL\nGROUP BY 聚合查询"]
+        MySQL --> SR
+    end
 
-[用户预订]
-    ↓
-[预订服务]（幂等键校验 → 事务扣库存 → 创建预订）
-    ↓
-[支付服务]（调用 Stripe 支付）
-    ↓ 支付失败
-[补偿：退还库存]（UPDATE reserved = reserved - 1）
+    subgraph 预订路径
+        B1[用户预订] --> BS["预订服务\n幂等键校验 → 事务扣库存"]
+        BS --> Pay["支付服务\nStripe"]
+        Pay -- 成功 --> Done[预订成功]
+        Pay -- 失败 --> Comp["补偿：退还库存\nreserved = reserved - 1"]
+    end
 
-[后台任务]
-    ├─ 预订超时取消（用户 10 分钟内未付款 → 释放库存）
-    └─ 定期对账（预订数 + 剩余库存 = 总库存）
+    subgraph 后台任务
+        T1["超时取消\n10分钟未付款 → 释放库存"]
+        T2["定期对账\n预订数 + 剩余库存 = 总库存"]
+    end
 ```
 
 ---

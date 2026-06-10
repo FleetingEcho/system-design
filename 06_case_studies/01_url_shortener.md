@@ -37,20 +37,19 @@
 
 ## 高层架构
 
-```
-客户端
-  ↓ POST /shorten
-API Gateway
-  ↓
-[短链生成服务] → 写 MySQL（short_code → long_url）
-               → 写 Redis 缓存
+```mermaid
+flowchart TD
+    C[客户端]
+    C -->|POST /shorten| GW[API Gateway]
+    GW --> Gen["短链生成服务"]
+    Gen --> MySQL["写 MySQL\nshort_code → long_url"]
+    Gen --> RW["写 Redis 缓存"]
 
-  ↓ GET /abc123
-[重定向服务]
-  ↓
-Redis 缓存 → 命中 → 301/302 重定向
-  ↓ 未命中
-MySQL 读取 → 写缓存 → 301/302 重定向
+    C2[客户端] -->|GET /abc123| Redir[重定向服务]
+    Redir --> RR{Redis 缓存}
+    RR -- 命中 --> R1[301/302 重定向]
+    RR -- 未命中 --> DB["查 MySQL\n写缓存"]
+    DB --> R1
 ```
 
 ---

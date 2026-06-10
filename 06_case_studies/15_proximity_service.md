@@ -165,31 +165,21 @@ POI 是静态的 → 可以预计算 Geohash 存入数据库
 
 ## 系统架构
 
+```mermaid
+flowchart TD
+    Client[用户客户端] -->|GET /search/nearby| GW["API Gateway\n鉴权/限流"]
+    GW --> Search["位置搜索服务\n无状态 水平扩展"]
+    Search --> GeoCalc["计算 9个 Geohash 格子"]
+    GeoCalc --> Cache{Redis 缓存\ngeohash:类别}
+    Cache -- 命中 --> Return[返回 POI 列表]
+    Cache -- 未命中 --> MySQL["MySQL\n按 geohash 索引查询"]
+    MySQL --> Filter["精确距离过滤 + 排序"]
+    Filter --> Return
+
+    Biz[商家写入] --> Mgmt["地点管理服务"]
+    Mgmt --> MySQL2["写 MySQL 主库\n更新 geohash 字段"]
+    Mgmt --> DelCache["删 Redis 缓存"]
 ```
-[用户客户端]
-    ↓ GET /search/nearby
-[API Gateway]（鉴权、限流）
-    ↓
-[位置搜索服务]（无状态，水平扩展）
-    ├─ 计算查询区域的 Geohash 列表（9个格子）
-    ├─ 查 Redis 缓存（Key: geohash:类别）
-    │    ↓ 未命中
-    ├─ 查 MySQL（按 geohash 索引）
-    ├─ 精确距离过滤 + 排序
-    └─ 返回 POI 列表
-
-[地点详情服务]
-    ├─ 查 Redis 缓存（Key: biz:{id}）
-    │    ↓ 未命中
-    └─ 查 MySQL
-
-[地点管理服务]（商家写入）
-    ├─ 写 MySQL（主库）
-    ├─ 更新 geohash 字段
-    └─ 删 Redis 缓存
-
-[MySQL]（主从复制）  [Redis 缓存]
-  主库：写           geohash 格子缓存
   从库×N：读         地点详情缓存
 ```
 

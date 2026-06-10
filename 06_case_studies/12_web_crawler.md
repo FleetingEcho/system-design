@@ -38,26 +38,16 @@ URL 去重存储：
 
 ## 系统架构
 
-```
-[种子 URL 列表]
-    ↓
-[URL 前端队列（URL Frontier）]
-  ├─ 待爬 URL 的优先级队列（按重要性排序）
-  └─ 按域名分组（保证礼貌延迟）
-    ↓
-[HTML 下载器集群]（多台爬虫机器）
-    ↓ 下载网页
-[内容处理器]
-  ├─ HTML 解析：提取文本内容 + 新链接
-  ├─ 内容去重：SHA256 对比（防止镜像站）
-  └─ URL 规范化：统一格式
-    ↓
-[URL 去重过滤器]（布隆过滤器）
-  → 新 URL → 加入 URL Frontier
-  → 已爬 URL → 丢弃
-    ↓
-[内容存储]（S3：原始 HTML）
-[索引构建]（Elasticsearch：搜索用）
+```mermaid
+flowchart TD
+    Seeds[种子 URL 列表] --> Frontier["URL Frontier\n优先级队列 + 按域名分组\n保证礼貌延迟"]
+    Frontier --> Downloader["HTML 下载器集群\n多台爬虫机器"]
+    Downloader --> Processor["内容处理器\n解析HTML / SHA256去重 / URL规范化"]
+    Processor --> Dedup{"布隆过滤器\nURL 去重"}
+    Dedup -- 新 URL --> Frontier
+    Dedup -- 已爬 --> Drop[丢弃]
+    Processor --> S3["S3\n原始 HTML 存储"]
+    Processor --> ES["Elasticsearch\n索引构建"]
 ```
 
 ---

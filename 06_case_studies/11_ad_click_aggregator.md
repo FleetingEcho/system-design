@@ -41,22 +41,21 @@
 
 ## 系统架构
 
-```
-[用户浏览器/App]
-    ↓ 点击广告（HTTP/像素请求）
-[事件收集服务]（无状态，水平扩展）
-    ↓ 立即写入（< 1ms 返回客户端）
-[Kafka]（原始事件 Topic: ad_events）
-    ↓
-    ├─────────────────────────────────────────┐
-[流处理（Flink）]                      [批处理（Spark）]
-  近实时聚合                               离线精确计算
-  延迟：1-5 分钟                           延迟：T+1（次日）
-  写入 Redis（实时看板）               写入 ClickHouse（历史分析）
-    ↓                                         ↓
-[查询服务]←──────────────────────────────────→
-    ↓
-[广告主 Dashboard]
+```mermaid
+flowchart TD
+    Browser["用户浏览器/App"] -->|点击广告| Collector["事件收集服务\n无状态 水平扩展"]
+    Collector -->|< 1ms 返回| Browser
+    Collector --> Kafka["Kafka\nad_events Topic"]
+
+    Kafka --> Flink["流处理（Flink）\n近实时聚合\n延迟：1-5 分钟"]
+    Kafka --> Spark["批处理（Spark）\n离线精确计算\n延迟：T+1（次日）"]
+
+    Flink --> Redis["Redis\n实时看板"]
+    Spark --> ClickHouse["ClickHouse\n历史分析"]
+
+    Redis --> QS["查询服务"]
+    ClickHouse --> QS
+    QS --> Dashboard["广告主 Dashboard"]
 ```
 
 ---

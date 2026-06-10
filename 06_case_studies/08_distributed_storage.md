@@ -34,27 +34,18 @@ DAU: 5000 万
 
 ## 系统架构
 
-```
-[用户客户端（Web/Desktop/Mobile）]
-    ↓ 上传文件（分块）
-[API Gateway]
-    ├─ [上传服务]
-    │    ├─ 文件分块 + 生成 Block ID（SHA256）
-    │    ├─ 上传块到 Object Storage（S3 / 自建块存储）
-    │    └─ 写文件元数据到 MySQL
-    │
-    ├─ [下载服务]
-    │    ├─ 查元数据（MySQL）→ 获取块列表
-    │    └─ 下载块（CDN / Object Storage）
-    │
-    └─ [同步服务]
-         ├─ 监听文件变更（长轮询 / WebSocket）
-         └─ 推送变更通知给其他设备
+```mermaid
+flowchart TD
+    Client["用户客户端\nWeb/Desktop/Mobile"] -->|上传文件（分块）| GW[API Gateway]
+    GW --> Up["上传服务\n分块 + Block ID（SHA256）"]
+    GW --> Down["下载服务\n查元数据 → 获取块列表"]
+    GW --> Sync["同步服务\n长轮询/WebSocket 推送变更"]
 
-[Object Storage] ← 存放实际文件块（S3 / Ceph）
-[MySQL] ← 文件元数据（路径、版本、块 ID 列表）
-[Redis] ← 文件锁（防止并发修改冲突）
-[CDN] ← 加速下载
+    Up --> S3["Object Storage\nS3 / Ceph（存文件块）"]
+    Up --> MySQL["MySQL\n文件元数据/路径/版本/块ID"]
+    Down --> CDN["CDN\n加速下载"]
+    Down --> MySQL
+    Sync --> Redis["Redis\n文件锁（防并发冲突）"]
 ```
 
 ---
