@@ -1,6 +1,6 @@
 # 系统设计面试笔记
 
-面向面试的系统设计自学文档。61 篇，覆盖从基础概念到完整系统设计的全链路。
+面向面试的系统设计自学文档。71 篇，覆盖从基础概念到完整系统设计的全链路。
 
 **核心线索**：一个系统在规模变大、节点增多、网络不可靠时，会在哪里崩溃？我们怎么应对？
 
@@ -28,6 +28,7 @@
 | [05 认证与安全](01_fundamentals/05_auth_security.md) | Session vs JWT；OAuth2；SQL 注入 / XSS / CSRF；**API 签名防重放；PII 加密；mTLS；Secret 管理** |
 | [06 微服务与部署](01_fundamentals/06_microservices_deployment.md) | 服务发现；Kubernetes 核心概念；蓝绿/金丝雀部署；API Gateway vs Service Mesh |
 | [07 核心数据结构](01_fundamentals/07_data_structures_for_sd.md) | Bloom Filter / Skip List / LSM Tree / Merkle Tree / B+ Tree / **HyperLogLog / Count-Min Sketch** — 底层原理、面试场景决策树 |
+| [09 一致性哈希深度解析](01_fundamentals/09_consistent_hashing.md) | 哈希环原理；虚拟节点（VNode）数学分析；扩缩容迁移流程；TypeScript 实现；vs Range Sharding 对比 |
 
 ---
 
@@ -132,6 +133,15 @@
 | [16 酒店预订](06_case_studies/16_hotel_reservation.md) | Booking.com | 库存并发防超卖；乐观锁 vs 悲观锁；Saga 取消补偿 |
 | [17 协同文档编辑](06_case_studies/17_collaborative_editor.md) | Google Docs | OT vs CRDT；WebSocket 实时同步；光标 ID；离线合并；版本历史 |
 | [18 股票交易所](06_case_studies/18_stock_exchange.md) | 低延迟交易所 | 撮合引擎；订单簿（红黑树）；LMAX Disruptor；μs级延迟；风控；WAL故障恢复 |
+| [19 分布式 KV 存储](06_case_studies/19_key_value_store.md) | Dynamo / DynamoDB | 一致性哈希虚拟节点；N/W/R Quorum；向量时钟冲突；Gossip 故障检测；Merkle 反熵 |
+| [20 Google Drive](06_case_studies/20_google_drive.md) | Google Drive / Dropbox | 4MB 分块上传；SHA-256 内容寻址；增量同步；三路合并冲突；WebSocket/SSE 通知 |
+| [21 附近的人](06_case_studies/21_nearby_friends.md) | 微信附近的人 | Redis GEO；Pub/Sub 实时推送；WebSocket Fanout；隐私黑名单；vs 附近搜索对比 |
+| [22 地图导航](06_case_studies/22_google_maps.md) | Google Maps | 地图瓦片 Z/X/Y；路网邻接表；A* vs Contraction Hierarchies；GPS探针→Kafka→Flink 实时路况 |
+| [23 分布式消息队列](06_case_studies/23_distributed_mq.md) | 设计 Kafka | 分区路由；Commit Log 顺序写；零拷贝 sendfile；ISR 副本协议；消费者组再平衡；日志压缩 |
+| [24 监控告警系统](06_case_studies/24_metrics_monitoring.md) | Prometheus + Alertmanager | Pull vs Push；时序数据模型（TSID+标签倒排索引）；Gorilla 压缩；降采样；告警状态机 |
+| [25 分布式邮件服务](06_case_studies/25_distributed_email.md) | SendGrid / SES | SMTP 发送流程；SPF/DKIM/DMARC；软退信 vs 硬退信；退订抑制列表；开信追踪像素 |
+| [26 游戏排行榜](06_case_studies/26_gaming_leaderboard.md) | 实时排行榜 | Redis ZSet（ZADD GT/ZREVRANK）；虚拟节点分片；Top 100 缓存刷新；好友榜推拉结合 |
+| [27 数字钱包](06_case_studies/27_digital_wallet.md) | 支付宝 / PayPal | 复式记账；幂等转账（idempotency_key）；乐观锁防超扣；本地消息表跨分片；日终对账 |
 
 ---
 
