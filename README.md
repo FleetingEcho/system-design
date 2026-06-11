@@ -21,6 +21,7 @@
 | 文件 | 核心内容 |
 |------|---------|
 | [01 度量体系](01_fundamentals/01_metrics.md) | Latency / Throughput / Availability；SLA/SLO/SLI；P99 vs 平均值 |
+| [08 输入URL后发生了什么](01_fundamentals/08_url_to_page.md) | DNS递归解析；TCP三次握手；TLS握手；HTTP/2多路复用；浏览器渲染流水线；CRP优化 |
 | [02 CAP 定理](01_fundamentals/02_cap_theorem.md) | 分区时只能选 C 或 A；CP vs AP 系统举例；PACELC 扩展 |
 | [03 ACID 与 BASE](01_fundamentals/03_acid_base.md) | 事务四特性；BASE 的含义；两者适用场景 |
 | [04 网络基础](01_fundamentals/04_network_basics.md) | TCP/UDP/HTTP；DNS 解析链路；CDN 工作原理；**L4 vs L7 负载均衡；算法；Anycast** |
@@ -70,6 +71,7 @@
 | [05 ID 生成](04_distributed/05_id_generation.md) | UUID / DB 自增 / Snowflake / 号段模式；时钟回拨问题 |
 | [06 分布式锁](04_distributed/06_distributed_lock.md) | Redis SETNX + Lua；ZooKeeper 临时顺序节点；Fencing Token 防脑裂 |
 | [07 多地域架构 + RTO/RPO](04_distributed/07_multi_region.md) | Active-Active vs Passive；写冲突解决；GeoDNS；故障切换 Playbook |
+| [08 Event Sourcing](04_distributed/08_event_sourcing.md) | 事件溯源原理；聚合根+命令+事件；Projection；Snapshot；CQRS 组合；Schema Evolution |
 
 ---
 
@@ -98,6 +100,7 @@
 | [06 面试官评分标准](05_methodology/reference/06_interviewer_rubric.md) | 面试官真正在评的 4 个维度；L4/L5/L6 的差距在哪里；常见失分模式 |
 | [07 技术横向对比速查表](05_methodology/reference/07_tech_comparison.md) | **7 张大表**：消息队列 / 数据库 / 缓存策略 / 通信协议 / LB 算法 / 存储类型 / 一致性模型 |
 | [08 流处理与数据管道](05_methodology/reference/08_data_pipeline.md) | 批处理 vs 流处理；Lambda vs Kappa 架构；Spark 基础；Flink 时间语义 / Watermark / 窗口 |
+| [09 Elasticsearch 深度解析](05_methodology/reference/09_elasticsearch_deep.md) | Lucene Segment；Posting List；NRT refresh vs flush；BM25；深度分页；写入/查询优化 |
 
 ---
 
@@ -128,6 +131,7 @@
 | [15 附近搜索](06_case_studies/15_proximity_service.md) | Yelp / 大众点评 | Geohash 9 格查询；静态 POI vs 动态位置；地理分片 |
 | [16 酒店预订](06_case_studies/16_hotel_reservation.md) | Booking.com | 库存并发防超卖；乐观锁 vs 悲观锁；Saga 取消补偿 |
 | [17 协同文档编辑](06_case_studies/17_collaborative_editor.md) | Google Docs | OT vs CRDT；WebSocket 实时同步；光标 ID；离线合并；版本历史 |
+| [18 股票交易所](06_case_studies/18_stock_exchange.md) | 低延迟交易所 | 撮合引擎；订单簿（红黑树）；LMAX Disruptor；μs级延迟；风控；WAL故障恢复 |
 
 ---
 
@@ -164,6 +168,9 @@
 | [02 LRU Cache](08_ood/02_lru_cache.md) | LRU Cache | HashMap + 双向链表 / O(1) get & put |
 | [03 电梯系统](08_ood/03_elevator.md) | Elevator System | 状态机 / SCAN 调度 / Strategy 模式 |
 | [04 扑克牌游戏](08_ood/04_card_game.md) | Card Game (Blackjack) | 抽象层次 / Template Method / Ace 点数逻辑 |
+| [05 自动贩卖机](08_ood/05_vending_machine.md) | Vending Machine | State 模式 / 状态机 / 预建实例切换 |
+| [06 图书馆系统](08_ood/06_library_system.md) | Library System | BookCatalog vs BookItem / 预约队列 / 逾期罚款 |
+| [07 国际象棋](08_ood/07_chess_game.md) | Chess Game | 棋子多态 / 合法走法验证 / 将军检测 / Board克隆模拟 |
 
 ---
 
