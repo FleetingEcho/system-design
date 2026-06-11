@@ -1,6 +1,6 @@
 # 系统设计面试笔记
 
-面向面试的系统设计自学文档。91 篇，覆盖从基础概念到完整系统设计的全链路。
+面向面试的系统设计自学文档。100 篇，覆盖从基础概念到完整系统设计的全链路。
 
 **核心线索**：一个系统在规模变大、节点增多、网络不可靠时，会在哪里崩溃？我们怎么应对？
 
@@ -191,6 +191,11 @@
 | [15 Twitter OOD](08_ood/15_twitter_ood.md) | Twitter（OOD层）| Tweet 多态（原推/转推/回复）/ Timeline 推拉模式 / 推荐关注 |
 | [16 聊天室](08_ood/16_chat_room.md) | Chat Room | Mediator 模式 / Observer 广播 / 消息多态 / 权限管理 |
 | [17 日志聚合器](08_ood/17_logger.md) | Logger | Singleton / 责任链（Handler链）/ 格式化 Strategy / 采样 |
+| [18 ATM 机](08_ood/18_atm_machine.md) | ATM Machine | State 模式（Idle/CardInserted/PINVerified/Dispensing）/ 金额精度 / 事务日志 |
+| [19 贪吃蛇](08_ood/19_snake_game.md) | Snake Game | Queue 模拟蛇身 / O(1) 碰撞检测（HashSet）/ 方向约束 / 胜利条件 |
+| [20 井字棋](08_ood/20_tic_tac_toe.md) | Tic-Tac-Toe | N×N 棋盘 / O(1) 胜负检测（行列对角线计数器）/ 玩家多态 / Minimax AI |
+| [21 电影院订票](08_ood/21_cinema_booking.md) | Cinema Booking | 2D 座位图 / 乐观锁防超卖（CAS）/ 预订超时释放 / 区域差异定价 |
+| [22 LFU Cache](08_ood/22_lfu_cache.md) | LFU Cache | 双 HashMap + LinkedHashSet / minFreq 追踪 / O(1) get&put / 同频 LRU |
 
 ---
 
@@ -212,7 +217,7 @@
 
 从零系统学习面向对象设计，全程 TypeScript。适合 OOD 基础薄弱或想系统梳理的读者。
 
-**学习路径**：先读基础四大特性（01-04）→ SOLID 原则（05）→ 三大类设计模式（06-08）→ 面试方法论（09）
+**学习路径**：先读基础四大特性（01-04）→ SOLID 原则（05）→ 三大类设计模式（06-08）→ 面试方法论（09）→ TS 高级类型（10）→ 反模式识别（11）→ GRASP 原则（12）→ UML 速查（13）
 
 | 文件 | 主题 | 核心内容 |
 |------|------|---------|
@@ -226,3 +231,7 @@
 | [07 结构型模式](09_ood_guide/07_structural_patterns.md) | Structural | Composite / Decorator（动态叠加）/ Adapter / Facade / Proxy（懒加载/缓存/权限）|
 | [08 行为型模式](09_ood_guide/08_behavioral_patterns.md) | Behavioral | Strategy / Observer / State / Command（Undo/Redo）/ CoR / Template Method |
 | [09 面试方法论](09_ood_guide/09_interview_guide.md) | 面试指南 | 45分钟时间分配 / 需求澄清话术 / 类图速绘 / 扩展性追问应对 / 题目难度分级 |
+| [10 TS 高级类型](09_ood_guide/10_typescript_advanced.md) | TypeScript | 判别联合 / 映射类型 / 条件类型 infer / 模板字面量类型 / keyof typeof / 泛型约束 |
+| [11 反模式](09_ood_guide/11_anti_patterns.md) | Anti-Patterns | 上帝类 / 贫血模型 / 原始类型偏执 / 特性依恋 / 霰弹式修改 / 过度设计 |
+| [12 GRASP 原则](09_ood_guide/12_grasp.md) | GRASP | 信息专家 / 创建者 / 控制器 / 低耦合 / 高内聚 / 多态 / 纯虚构 / 间接 / 防止变异 |
+| [13 UML 速查表](09_ood_guide/13_uml_cheatsheet.md) | UML | 六大关系箭头 / 多重性符号 / 白板画图技巧 / 代码→UML 对照表 |
