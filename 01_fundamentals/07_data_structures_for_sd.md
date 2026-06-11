@@ -4,11 +4,13 @@
 
 | 数据结构 | 核心特点 | 典型应用 |
 |----------|---------|---------|
-| Bloom Filter | 概率性判断"不存在"，零误判 | 缓存穿透防护、URL 去重 |
+| Bloom Filter | 概率性判断"不存在"，无假阴性 | 缓存穿透防护、URL 去重 |
 | Skip List | 概率性多层链表，O(log n) | Redis ZSet、LevelDB MemTable |
 | LSM Tree | 写入极快，顺序写磁盘，读需合并 | Cassandra、RocksDB、HBase |
 | Merkle Tree | 树形哈希，高效验证数据一致性 | Git、BitTorrent、区块链 |
 | B+ Tree | 所有数据在叶子节点，叶链表支持范围扫描 | MySQL InnoDB、PostgreSQL |
+| HyperLogLog | 12KB 估算亿级基数，误差 0.81% | DAU/UV 统计、Redis PFCOUNT |
+| Count-Min Sketch | 二维计数矩阵，频率只高不低 | 热搜 Top-K、流量频率统计 |
 
 ---
 
@@ -428,15 +430,213 @@ B-Tree 的范围查询：需要中序遍历（回到根节点，多次随机 IO�
 
 ---
 
+---
+
+## HyperLogLog（基数估算）
+
+### 核心问题
+
+**"统计网站今天有多少独立访客（UV）？"**
+
+- 精确计数：用 HashSet 存所有 user_id → 1 亿用户 × 8 字节 = 800MB，代价极高
+- HyperLogLog：用 **12KB** 内存，误差 < 0.81%，估算任意规模的基数
+
+### 数学直觉
+
+```
+核心观察：在一串随机比特串中，"连续前缀零的个数" 与集合大小相关。
+
+例：随机哈希值以 000 开头的概率 = 1/8 → 如果出现了 000，大概率集合里有 ≥ 8 个元素
+
+HyperLogLog 改进：
+  1. 把输入哈希成 64 位
+  2. 用前 b 位分桶（通常 b=14，共 2^14=16384 个桶）
+  3. 每个桶记录该桶内所有元素哈希值"尾部连续零"的最大值 M[j]
+  4. 基数估算 = α × m² × (Σ 2^(-M[j]))^(-1)
+
+直觉：尾部零越多 → 需要更多元素才能碰到 → 集合越大
+```
+
+```mermaid
+flowchart LR
+    Input["user_id\n'user_12345'"] --> Hash["Hash → 64-bit\n0110 1001 0001..."]
+    Hash --> Bucket["前14位 → 桶号\nb=0110 1001 00 = 桶 #426"]
+    Hash --> Zeros["后50位 → 统计尾部连续1的位置\nM[426] = max(M[426], rank)"]
+    Buckets["16384个桶\n每桶存最大rank（6bit）\n总计 12KB"] --> Estimate["调和平均估算\n基数 ≈ α × m² / Σ2^(-M[j])"]
+```
+
+### Redis HyperLogLog 命令
+
+```redis
+# 添加元素（内部做哈希，不存原始值）
+PFADD page:views:2024-01-15 "user_123"
+PFADD page:views:2024-01-15 "user_456"
+PFADD page:views:2024-01-15 "user_123"  ← 重复，不计
+
+# 估算基数
+PFCOUNT page:views:2024-01-15           → 2（实际是2）
+
+# 合并多天（计算周 UV）
+PFMERGE page:views:week page:views:2024-01-15 page:views:2024-01-16
+PFCOUNT page:views:week
+
+# 内存：每个 HyperLogLog 固定 12KB，无论集合有多大
+```
+
+### 误差与适用场景
+
+```
+误差率：标准误差 ε = 1.04 / √m，m=16384桶时 ε ≈ 0.81%
+
+实际含义：
+  真实 UV = 1,000,000
+  HLL 估算 ≈ 992,000 ~ 1,008,000（误差约 8000）
+  对于业务报表，完全可以接受
+
+不适用：
+  需要精确计数（如金融对账）→ 用精确计数
+  需要知道"谁"在集合里 → HLL 不存原始元素
+  集合很小（< 100）→ HLL 有较大相对误差，直接用 Set
+```
+
+### 面试标准答案模板
+
+> "统计 DAU / UV 这类基数问题，如果用 Redis Set 存 user_id，1 亿用户需要 800MB；改用 HyperLogLog，固定 12KB 内存，误差 0.81%，对报表类场景完全够用。每天的 UV 用 `PFADD day:uv:{date} {user_id}`，合并多天用 `PFMERGE`，O(1) 时间复杂度。"
+
+---
+
+## Count-Min Sketch（频率估算 / Top-K）
+
+### 核心问题
+
+**"Twitter 热搜 Top 10"** / **"找出最频繁访问的 API 路径"** / **"广告点击频次统计"**
+
+- 精确：HashMap 存所有词的计数 → 海量词汇时内存爆炸
+- Count-Min Sketch：用固定大小的二维数组，O(1) 更新和查询，有界误差
+
+### 核心结构
+
+```
+d 行 × w 列的计数器矩阵 + d 个独立哈希函数
+
+        h1  h2  h3  h4  h5（w列）
+Row 0:   0   0   3   0   1
+Row 1:   0   2   0   1   0
+Row 2:   1   0   0   2   0
+（d行，每行一个哈希函数）
+
+更新 "trump"（计数+1）：
+  h1("trump") % w = 2  → Row0[2] += 1
+  h2("trump") % w = 1  → Row1[1] += 1
+  h3("trump") % w = 3  → Row2[3] += 1
+
+查询 "trump" 的频率：
+  min(Row0[2], Row1[1], Row2[3]) = 估算频率
+  （取最小值，因为哈希碰撞只会让计数偏高，不会偏低）
+```
+
+```mermaid
+flowchart TD
+    Word["词: 'trump'"] --> H1["h1 → 列2"] & H2["h2 → 列1"] & H3["h3 → 列3"]
+    H1 --> R0["Row0[2] += 1"]
+    H2 --> R1["Row1[1] += 1"]
+    H3 --> R2["Row2[3] += 1"]
+    Query["查询频率"] --> Min["min(Row0[2], Row1[1], Row2[3])"]
+    Min --> Est["估算值（只高不低）"]
+```
+
+### 误差保证
+
+```
+设矩阵宽 w = e/ε（e≈2.718），行数 d = ln(1/δ)：
+  ε = 相对误差界（如 1%）
+  δ = 超过误差的概率（如 1%）
+
+实际配置：
+  ε = 0.01（误差 1%），δ = 0.01（99% 置信）
+  → w = 272，d = 5（5行272列 = 1360个计数器）
+  → 内存：1360 × 4 字节 ≈ 5KB（处理任意规模数据！）
+
+性质：估算值 ≥ 真实值（只高不低），误差有上界
+```
+
+### 结合 Min-Heap 实现 Top-K
+
+```mermaid
+flowchart TD
+    Stream["实时数据流\n推文/点击/搜索词"] --> CMS["Count-Min Sketch\n更新频率（O(1)）"]
+    CMS --> Freq["查询词频\ncount('trump') = 估算值"]
+    Freq --> Heap["Min-Heap（大小K）\n维护 Top-K 候选"]
+    Heap --> Check{"新词频 >\n堆顶最小值?"}
+    Check -- 是 --> Replace["替换堆顶，重新堆化"]
+    Check -- 否 --> Discard["丢弃"]
+    Heap --> TopK["Top-K 结果\nO(log K) 维护"]
+```
+
+```python
+class TopKTracker:
+    def __init__(self, k, width=272, depth=5):
+        self.cms = CountMinSketch(width, depth)
+        self.heap = []  # min-heap of (count, item)
+        self.k = k
+        self.in_heap = set()
+
+    def add(self, item):
+        self.cms.increment(item)
+        count = self.cms.query(item)
+        
+        if item in self.in_heap:
+            # 更新堆中已有元素的频率（简化版：重建）
+            pass
+        elif len(self.heap) < self.k:
+            heapq.heappush(self.heap, (count, item))
+            self.in_heap.add(item)
+        elif count > self.heap[0][0]:
+            old = heapq.heapreplace(self.heap, (count, item))
+            self.in_heap.discard(old[1])
+            self.in_heap.add(item)
+```
+
+### 面试标准答案模板
+
+> "热搜 Top-K 问题，如果用 HashMap 精确计数，海量词汇内存扛不住。用 Count-Min Sketch：二维计数数组（d 行 × w 列），d 个哈希函数，更新 O(d)，查询 O(d) 取最小值（误差只高不低）。配合一个大小 K 的 Min-Heap 维护当前 Top-K，总内存 O(K + d×w)，跟数据规模无关。"
+
+---
+
 ## 面试速查：选哪个数据结构
 
-| 面试场景 | 最佳回答 |
-|----------|---------|
-| 缓存穿透/URL 去重 | Bloom Filter（空间小，快速判断"不存在"） |
-| Redis 排行榜 / 有序集合 | Skip List（ZSet 底层，O(log n) 范围查询） |
-| 数据库写密集场景 | LSM Tree（顺序写，Cassandra/RocksDB 选它的原因） |
-| 数据一致性验证 / 副本同步 | Merkle Tree（O(log n) 找到差异，不需全量比较） |
-| 数据库索引 / 范围查询 | B+ Tree（顺序叶链表，O(log n + k) 范围扫描） |
+```mermaid
+flowchart TD
+    Q[面试问题类型] --> Q1{需要统计什么?}
+
+    Q1 --> A1["是否存在\n去重"]
+    Q1 --> A2["出现频率\nTop-K"]
+    Q1 --> A3["基数估算\n独立用户数"]
+    Q1 --> A4["有序集合\n范围查询"]
+    Q1 --> A5["数据库存储\n写 vs 读密集"]
+    Q1 --> A6["副本同步\n一致性验证"]
+    Q1 --> A7["前缀匹配\n搜索补全"]
+
+    A1 --> R1["Bloom Filter\n12KB判断'不存在'\n假阳性可接受"]
+    A2 --> R2["Count-Min Sketch\n+ Min-Heap\n固定内存，有界误差"]
+    A3 --> R3["HyperLogLog\n12KB，误差0.81%\nRedis PFADD/PFCOUNT"]
+    A4 --> R4["Skip List\nRedis ZSet底层\nO(log n)范围扫描"]
+    A5 --> R5A["写密集 → LSM Tree\nCassandra/RocksDB"]
+    A5 --> R5B["读密集 → B+ Tree\nMySQL InnoDB"]
+    A6 --> R6["Merkle Tree\nO(log n)找差异\n不需全量比较"]
+    A7 --> R7["Trie 前缀树\n+预缓存Top-K节点\n搜索补全标配"]
+```
+
+| 面试场景 | 数据结构 | 一句话理由 |
+|----------|---------|----------|
+| 缓存穿透 / URL 去重 | Bloom Filter | 12KB 判断"一定不存在"，假阳性可接受 |
+| 热搜 Top-K / 频率统计 | Count-Min Sketch + Min-Heap | 固定内存，误差只高不低 |
+| DAU / UV 基数统计 | HyperLogLog | 12KB 估算亿级基数，误差 0.81% |
+| 排行榜 / 有序集合 | Skip List（Redis ZSet） | O(log n) 有序范围查询 |
+| 前缀搜索 / 搜索补全 | Trie + Top-K 预缓存 | O(前缀长度) 查到候选词 |
+| 写多读少（时序/日志） | LSM Tree | 随机写变顺序写，Cassandra 选它的原因 |
+| 数据库索引 / 范围查询 | B+ Tree | 叶链表顺序扫描，树高 3 扛 10 亿行 |
+| 副本同步 / 数据对比 | Merkle Tree | O(log n) 定位差异，Git / Cassandra 反熵 |
 
 ---
 
@@ -444,5 +644,6 @@ B-Tree 的范围查询：需要中序遍历（回到根节点，多次随机 IO�
 
 - [../02_storage/01_rdbms.md](../02_storage/01_rdbms.md) — B+ Tree 在 MySQL 索引中的应用
 - [../02_storage/02_nosql.md](../02_storage/02_nosql.md) — Cassandra LSM Tree 与 ScyllaDB
+- [../06_case_studies/11_ad_click_aggregator.md](../06_case_studies/11_ad_click_aggregator.md) — Count-Min Sketch 在广告点击统计中的应用
 - [../06_case_studies/12_web_crawler.md](../06_case_studies/12_web_crawler.md) — 爬虫 URL 去重（Bloom Filter）
 - [../06_case_studies/07_distributed_cache.md](../06_case_studies/07_distributed_cache.md) — 分布式缓存（跳表在 Redis 中）
