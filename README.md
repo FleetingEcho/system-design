@@ -1,6 +1,6 @@
 # 系统设计面试笔记
 
-面向面试的系统设计自学文档。71 篇，覆盖从基础概念到完整系统设计的全链路。
+面向面试的系统设计自学文档。81 篇，覆盖从基础概念到完整系统设计的全链路。
 
 **核心线索**：一个系统在规模变大、节点增多、网络不可靠时，会在哪里崩溃？我们怎么应对？
 
@@ -181,6 +181,16 @@
 | [05 自动贩卖机](08_ood/05_vending_machine.md) | Vending Machine | State 模式 / 状态机 / 预建实例切换 |
 | [06 图书馆系统](08_ood/06_library_system.md) | Library System | BookCatalog vs BookItem / 预约队列 / 逾期罚款 |
 | [07 国际象棋](08_ood/07_chess_game.md) | Chess Game | 棋子多态 / 合法走法验证 / 将军检测 / Board克隆模拟 |
+| [08 HashMap](08_ood/08_hashmap.md) | HashMap | 链地址法 / 动态 rehash / 负载因子 / 为何用 2 的幂次 |
+| [09 文件系统](08_ood/09_file_system.md) | File System | Composite 模式（File+Directory 同接口）/ 递归 size / 路径解析 |
+| [10 网约车](08_ood/10_ride_sharing_ood.md) | Ride Sharing | 行程状态机 / 车型多态 / 司机匹配 Strategy / 计价 |
+| [11 酒店预订](08_ood/11_hotel_booking.md) | Hotel Booking | 房间类型多态 / 防超卖乐观锁 / 预订状态机 / 计价 Strategy |
+| [12 外卖系统](08_ood/12_food_delivery.md) | Food Delivery | 订单状态机 / 菜单 Composite / Observer 推送通知 / 骑手分配 |
+| [13 购物车](08_ood/13_shopping_cart.md) | Shopping Cart | 实物 vs 数字商品多态 / 折扣 Strategy / 结账防超卖 |
+| [14 阻塞队列](08_ood/14_blocking_queue.md) | Blocking Queue | Producer-Consumer / 条件变量 / Java ReentrantLock 实现 |
+| [15 Twitter OOD](08_ood/15_twitter_ood.md) | Twitter（OOD层）| Tweet 多态（原推/转推/回复）/ Timeline 推拉模式 / 推荐关注 |
+| [16 聊天室](08_ood/16_chat_room.md) | Chat Room | Mediator 模式 / Observer 广播 / 消息多态 / 权限管理 |
+| [17 日志聚合器](08_ood/17_logger.md) | Logger | Singleton / 责任链（Handler链）/ 格式化 Strategy / 采样 |
 
 ---
 
