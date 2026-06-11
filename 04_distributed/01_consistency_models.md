@@ -21,6 +21,17 @@
 
 不同的一致性模型，就是为不同数据量身定制的保证级别。
 
+```mermaid
+flowchart LR
+    Lin["线性一致性\nLinearizability\n操作瞬间原子\n全局顺序与时间严格一致"]
+    Seq["顺序一致性\nSequential\n有全局顺序\n不要求与真实时间对齐"]
+    Cau["因果一致性\nCausal\n有因果关系的操作保序\n无关操作可以乱序"]
+    Eve["最终一致性\nEventual\n只保证最终收敛\n过程可以不一致"]
+    Lin -->|"放宽要求\n延迟降低\n可用性提升"| Seq
+    Seq -->|"放宽要求"| Cau
+    Cau -->|"放宽要求"| Eve
+```
+
 ---
 
 ## 线性一致性（Linearizability）
@@ -122,6 +133,21 @@ B同步给A后，A收到B的[1,1,0]：
   → A知道B的操作发生在A的操作之后（因为B知道A的第1个操作）
 ```
 
+```mermaid
+sequenceDiagram
+    participant A as 节点A [0,0,0]
+    participant B as 节点B [0,0,0]
+    participant C as 节点C [0,0,0]
+    Note over A: 本地操作 → [1,0,0]
+    A->>B: 同步操作
+    Note over B: 收到A → [1,0,0]
+    Note over B: 本地操作 → [1,1,0]
+    Note over C: 独立操作（未见A/B）→ [0,0,1]
+    Note over B,C: B[1,1,0] 与 C[0,0,1]<br/>无法比较大小 → 并发操作<br/>无因果关系 → 合并可能冲突
+    B->>A: 同步 [1,1,0]
+    Note over A: A知道B的操作发生在A之后（因为B知道A的第1个操作）
+```
+
 ### 因果一致性的适用场景
 
 - 社交媒体（"先看到帖子，才能看到评论"）
@@ -201,6 +227,18 @@ W=3, R=1（写强一致，读任意）：
 W=1, R=3（写快，读强一致）：
   写入1个副本快速返回
   读3个副本取最新（会看到最新写入）
+```
+
+```mermaid
+flowchart TD
+    Client["客户端"] -->|"写请求"| N1["副本1 ✓ 确认"]
+    Client -->|"写请求"| N2["副本2 ✓ 确认"]
+    Client -.->|"W=2: 不等待"| N3["副本3\n异步同步中"]
+    N1 & N2 -->|"W=2 已达到\n写入成功"| WOK["✅ 写入完成"]
+
+    ReadC["读请求"] -->|"R=2: 查询"| N1
+    ReadC -->|"R=2: 查询"| N2
+    N1 & N2 -->|"取最新值"| ROK["✅ 读到最新\nW+R=4 > N=3\n必有交集"]
 ```
 
 **Cassandra 的一致性级别：**

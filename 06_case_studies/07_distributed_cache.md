@@ -68,6 +68,19 @@
   → 只有 node1 的 key 需要迁移
 ```
 
+```mermaid
+flowchart LR
+    subgraph Before["扩容前（3节点）"]
+        K1["key@250"] -->|"顺时针"| N1A["node1@300\n负责 101~300"]
+        K2["key@420"] -->|"顺时针"| N2A["node2@600\n负责 301~600"]
+    end
+    subgraph After["新增 node_new@450"]
+        K3["key@250"] -->|"不变"| N1B["node1@300\n负责 101~300 ✓"]
+        K4["key@420"] -->|"迁移到新节点"| NNew["node_new@450\n负责 301~450\n⚠️ 只迁移这段"]
+        K5["key@520"] -->|"不变"| N2B["node2@600\n负责 451~600 ✓"]
+    end
+```
+
 ### 虚拟节点（Virtual Nodes）
 
 解决节点数量少时的数据不均匀问题：
@@ -202,6 +215,14 @@ LRU（Least Recently Used）：
   淘汰：删除链表尾部节点
   适合：热点数据有明显的"近期访问"特征
 
+```mermaid
+flowchart LR
+    Access["访问 key_A"] --> HM["HashMap\nO(1) 查找节点"]
+    HM --> MoveHead["移到链表头部\n（最近访问）"]
+    MoveHead --> List["链表结构\n头: key_A（最新）\n...\n尾: key_Z（最久未访问）"]
+    Evict["内存满\n触发淘汰"] -->|"O(1) 删除"| Tail["删除链表尾部 key_Z"]
+```
+
 LFU（Least Frequently Used）：
   删除访问频率最低的 Key
   实现：MinHeap + HashMap（Key → 频次）
@@ -261,6 +282,16 @@ Redis 的做法：两者结合
 方案三：动态 Key 发现
   监控 Redis 的访问频率（Redis 4.0+ 的 hotkeys 命令）
   发现热 Key 后自动触发 Key 拆分或本地缓存
+```
+
+```mermaid
+flowchart TD
+    Req["请求 hot_key"] --> LC{"本地缓存\n命中？"}
+    LC -->|"✅ 命中\n(TTL 1-5s)"| RetLocal["直接返回\n不访问Redis"]
+    LC -->|"❌ 未命中"| Shard["随机选分片\nhot_key:shard_N\nN ∈ [0,9]"]
+    Shard --> Redis["Redis 集群\n10个分片节点分摊压力"]
+    Redis --> WriteLocal["写回本地缓存"]
+    WriteLocal --> Ret["返回结果"]
 ```
 
 ---

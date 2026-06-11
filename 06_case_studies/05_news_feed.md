@@ -39,20 +39,14 @@ Fanout 成本估算（推模式）：
 
 ### 方案一：推模式（Fanout on Write）
 
-```
-用户 A 发帖
-  ↓
-Fanout 服务：查出 A 的所有粉丝（如 200 人）
-  ↓
-把帖子 ID 写入每个粉丝的 Timeline Cache（Redis）
-  └── 用户B 的 Timeline: [帖子ID1, 帖子ID5, 帖子ID10, ...]
-      用户C 的 Timeline: [帖子ID1, 帖子ID7, ...]
-      ...
-
-读 Feed（用户 B）：
-  直接读 Redis "timeline:userB" → 获取帖子 ID 列表
-  批量查帖子内容
-  极快！（纯缓存读）
+```mermaid
+flowchart TD
+    A[用户 A 发帖] --> Fanout["Fanout 服务\n查出 A 的所有粉丝（200人）"]
+    Fanout --> W1["写 timeline:userB\nZADD post_id"]
+    Fanout --> W2["写 timeline:userC\nZADD post_id"]
+    Fanout --> Wn["写 timeline:userN...\n（并发写入）"]
+    R1[用户 B 读 Feed] --> Redis["直接读 Redis\ntimeline:userB"]
+    Redis --> R2["批量查帖子内容\n返回结果（极快）"]
 ```
 
 **优点：** 读极快（预计算好了）
@@ -62,17 +56,13 @@ Fanout 服务：查出 A 的所有粉丝（如 200 人）
 
 ### 方案二：拉模式（Fanout on Read）
 
-```
-用户 A 发帖：只写一次到帖子数据库
-
-读 Feed（用户 B）：
-  查出 B 的关注列表（200 人）
-  查这 200 人最近发的帖子
-  合并按时间排序
-  返回
-
-每次读都是 200 次数据库查询 + 排序 → 慢！
-可以用 Redis 缓存每个用户最近帖子，但合并仍然要在内存里做
+```mermaid
+flowchart TD
+    A[用户 A 发帖] --> DB["只写一次\n帖子数据库（MySQL）"]
+    B[用户 B 读 Feed] --> FollowList["查 B 的关注列表\n200 人"]
+    FollowList --> Query["查这 200 人\n最近的帖子"]
+    Query --> Merge["合并 + 按时间排序\n每次读都要做 → 慢！"]
+    Merge --> Return["返回结果"]
 ```
 
 **优点：** 写极快（只写一次）
@@ -82,17 +72,18 @@ Fanout 服务：查出 A 的所有粉丝（如 200 人）
 
 ### 方案三：推拉结合（Twitter 的实际做法）
 
-```
-判断条件：
-  普通用户（粉丝 < 1 万）→ 推模式
-  大 V（粉丝 > 1 万）→ 不参与 Fanout，让粉丝读 Feed 时拉取
+```mermaid
+flowchart TD
+    Post[用户发帖] --> Judge{发帖者是大V?\n粉丝 > 1万}
+    Judge -- 否，普通用户 --> Fanout["Fanout 写入\n所有粉丝 Timeline 缓存"]
+    Judge -- 是，大V --> Skip["只写大V帖子缓存\n跳过 Fanout"]
 
-读 Feed 时：
-  1. 读取缓存 Timeline（包含关注的普通用户发的帖子 ID）
-  2. 查出关注的大 V 列表（通常 1-5 个）
-  3. 实时拉取大 V 最新帖子
-  4. 合并 1 和 3，按时间排序
-  5. 返回
+    ReadFeed[用户读 Feed] --> CacheTimeline["① 读缓存 Timeline\n普通用户的帖子 ID"]
+    ReadFeed --> VList["② 查关注的大V列表\n通常 1-5 个"]
+    VList --> PullV["③ 实时拉取大V最新帖子"]
+    CacheTimeline --> Merge["④ 合并 + 按时间排序"]
+    PullV --> Merge
+    Merge --> Result["返回 Top 20 条"]
 ```
 
 **关键 insight：** 大 V 通常关注的人少（几千个用户关注了 Elon Musk），而普通用户的帖子 Fanout 代价小。读时额外拉取的大 V 数量有限（用户关注的大 V 通常 < 10 个），合并成本可控。

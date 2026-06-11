@@ -43,18 +43,23 @@ YouTube 数据参考：
 
 ## 视频上传流程
 
-```
-[大文件分片上传（与分布式文件存储类似）]
+```mermaid
+sequenceDiagram
+    participant C as 客户端
+    participant API as Upload API
+    participant S3 as S3 对象存储
+    participant DB as MySQL videos表
+    participant Kafka as Kafka
 
-1. 客户端把视频分成 4 MB 的块
-2. POST /upload/init → 获取 upload_id
-3. 并发上传块（最多 5 个并发）
-4. POST /upload/complete
-5. 服务器合并块到 Object Storage（S3）
-
-上传完成后：
-  写 videos 表（status='processing', raw_key='s3://raw/video123.mp4'）
-  发 Kafka 消息到 "video_transcoding" Topic
+    C->>API: POST /upload/init
+    API-->>C: upload_id
+    C->>API: 并发上传分片\n(每片 4MB，最多5并发)
+    API->>S3: 存储原始分片
+    C->>API: POST /upload/complete
+    API->>S3: 合并分片 → raw/video123.mp4
+    API->>DB: status='processing'
+    API->>Kafka: 发消息到 video_transcoding Topic
+    Note over Kafka: 触发异步转码流程
 ```
 
 ---
@@ -107,20 +112,17 @@ HLS 是苹果提出的自适应码率流媒体协议：
 
 ### 转码架构
 
-```
-[Kafka: video_transcoding Topic]
-    ↓ 消费
-[Transcoding Worker 集群]（CPU 密集型，大量 GPU/CPU）
-    ├─ 从 S3 下载原始视频
-    ├─ 使用 FFmpeg 转码（最耗时的步骤）
-    │    ffmpeg -i input.mp4 \
-    │      -vf scale=1920:1080 -crf 23 -c:v libx264 output_1080p.mp4
-    │      -vf scale=1280:720  -crf 25 -c:v libx264 output_720p.mp4
-    │      -vf scale=640:360   -crf 28 -c:v libx264 output_360p.mp4
-    ├─ 切片成 2 秒的 .ts 片段（HLS）
-    ├─ 生成 M3U8 播放列表
-    ├─ 上传所有片段到 CDN 源站（S3）
-    └─ 更新 videos 表：status='ready', hls_url='https://cdn/video123/master.m3u8'
+```mermaid
+flowchart TD
+    Kafka["Kafka\nvideo_transcoding Topic"] --> Workers["Transcoding Worker 集群\nCPU/GPU 密集型"]
+    Workers --> Download["从 S3 下载原始视频"]
+    Download --> Parallel["并行转码（DAG任务）"]
+    Parallel --> T360["Worker A\nFFmpeg → 360p\n.ts分片 + M3U8"]
+    Parallel --> T720["Worker B\nFFmpeg → 720p\n.ts分片 + M3U8"]
+    Parallel --> T1080["Worker C\nFFmpeg → 1080p\n.ts分片 + M3U8"]
+    T360 & T720 & T1080 --> Merge["汇总生成\nmaster.m3u8"]
+    Merge --> CDN["上传所有分片\n到CDN源站（S3）"]
+    CDN --> DB["更新 videos 表\nstatus='ready'\nhls_url=..."]
 
 转码耗时参考：
   1 分钟 1080p 视频 → 全部转码约 2-5 分钟（取决于 CPU 核数）

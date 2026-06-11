@@ -81,10 +81,21 @@
   实例挂了 → 从注册表删除 → 不再返回给查询者
 ```
 
+```mermaid
+sequenceDiagram
+    participant B as 服务B（启动）
+    participant C as Consul/etcd
+    participant A as 服务A（调用方）
+    B->>C: 注册 IP:Port + 健康检查地址
+    C->>C: 定期 Ping 健康检查
+    A->>C: 查询"B 的实例列表？"
+    C-->>A: [192.168.1.10:8080, 192.168.1.11:8080]
+    A->>B: 直连（客户端负载均衡）
+    Note over B,C: B 宕机 → 健康检查失败<br/>→ 从注册表删除<br/>→ 不再返回给 A
 ```
-优点：客户端直连，没有额外跳跃，延迟低
-缺点：每个服务客户端都要内嵌服务发现逻辑（多语言维护成本高）
-```
+
+**优点：** 客户端直连，没有额外跳跃，延迟低
+**缺点：** 每个服务客户端都要内嵌服务发现逻辑（多语言维护成本高）
 
 ### 方案二：服务端服务发现（Server-Side Discovery）
 
@@ -159,6 +170,19 @@ ConfigMap / Secret：
   配置和密钥与镜像分离，注入到 Pod 的环境变量或文件
 ```
 
+```mermaid
+flowchart TD
+    Internet["外部流量"] --> Ingress["Ingress\nHTTP路由\napi.example.com → api-svc\napp.example.com → web-svc"]
+    Ingress --> SvcA["Service A\nClusterIP 虚拟IP\nDNS: my-api.default.svc"]
+    Ingress --> SvcB["Service B\nClusterIP"]
+    SvcA --> Pod1["Pod 1\nContainer"]
+    SvcA --> Pod2["Pod 2\nContainer"]
+    SvcA --> Pod3["Pod 3\nContainer"]
+    SvcB --> Pod4["Pod 4"]
+    HPA["HPA\nCPU > 70%\n自动增减 Pod 数"] -.->|"扩缩容"| SvcA
+    CM["ConfigMap / Secret\n配置与镜像分离"] -.->|"注入环境变量"| Pod1
+```
+
 ### 典型部署配置（面试能画出来）
 
 ```yaml
@@ -229,38 +253,24 @@ v2 v2 v2 v2
 
 ### 蓝绿部署（Blue-Green）
 
-```
-同时维护两套环境，切换流量：
-
-[蓝环境 v1] ← 当前生产流量
-[绿环境 v2] ← 新版本，已部署好，做完测试
-
-切换：修改 Load Balancer，把流量从蓝切到绿
-  → 切换瞬间完成，无缝
-  → 出问题：改回来，回滚也是瞬间
-
-代价：
-  需要双倍的机器资源（同时运行两套环境）
-适合：需要一键快速回滚的重要发布
+```mermaid
+flowchart TD
+    LB["Load Balancer"] -->|"100% 流量"| Blue["蓝环境 v1\n当前生产"]
+    LB -.->|"测试完后\n切换流量（瞬间）"| Green["绿环境 v2\n新版本就绪"]
+    Green -.->|"出问题立即回切"| Blue
+    Note["代价：需要双倍机器资源\n适合：需要一键快速回滚的重要发布"]
 ```
 
 ### 金丝雀发布（Canary Release）
 
-```
-先把 5% 的流量导到新版本，观察一段时间：
-
-[v1 服务] ← 95% 流量
-[v2 服务] ← 5% 流量（金丝雀）
-
-监控指标（错误率、延迟）正常？
-  → 逐渐增大 v2 流量比例（5% → 20% → 50% → 100%）
-  → 全部切完后下线 v1
-
-出问题？
-  → 立即把 v2 流量降回 0%，影响只有 5% 的用户
-  
-适合：高风险发布，需要小流量验证
-Kubernetes 实现：Ingress 权重 或 Service Mesh（Istio）流量分割
+```mermaid
+flowchart TD
+    LB["Load Balancer"] -->|"95% 流量"| V1["v1 服务"]
+    LB -->|"5% 流量\n金丝雀"| V2["v2 新版本"]
+    Monitor["监控：错误率 / P99 延迟"] --> Check{"指标正常？"}
+    Check -->|"✅ 正常"| Scale["逐步放量\n5%→20%→50%→100%"]
+    Check -->|"❌ 异常"| Rollback["v2 流量归零\n立即回滚\n仅影响 5% 用户"]
+    Scale --> Full["v2 全量\n下线 v1"]
 ```
 
 ---
@@ -304,6 +314,21 @@ Kubernetes 实现：Ingress 权重 或 Service Mesh（Istio）流量分割
   - 运维复杂（学习曲线高）
   - 每个 Pod 多一个容器（CPU/内存开销）
   - 适合大规模微服务（> 20 个服务），小团队用 API Gateway + 手动处理足够
+```
+
+```mermaid
+flowchart TD
+    Internet["外部请求"] --> GW["API Gateway\n认证/限流/路由/SSL终止\n南北向流量"]
+    GW --> SvcA
+
+    subgraph Mesh["Service Mesh（东西向流量）"]
+        SvcA["服务A\n+ Envoy Sidecar"] <-->|"mTLS\n自动加密"| SvcB["服务B\n+ Envoy Sidecar"]
+        SvcB <-->|"熔断/重试\n由Sidecar代理"| SvcC["服务C\n+ Envoy Sidecar"]
+    end
+
+    CP["Istio 控制面\n统一配置所有 Sidecar"] -.->|"下发策略"| SvcA
+    CP -.-> SvcB
+    CP -.-> SvcC
 ```
 
 ```

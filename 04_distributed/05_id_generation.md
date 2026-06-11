@@ -113,6 +113,15 @@ CREATE TABLE users (
 | 0   | 时间戳(ms)  | 机器ID   | 序列号     |
 ```
 
+```mermaid
+flowchart LR
+    B0["bit 63\n1bit\n符号位=0\n保证正数"]
+    B1["bits 22~62\n41bit\n时间戳 ms\n从自定义epoch起\n可用约69年"]
+    B2["bits 12~21\n10bit\n机器ID\n支持1024台机器\n(5位DC + 5位机器)"]
+    B3["bits 0~11\n12bit\n序列号\n同一毫秒最多\n4096个ID"]
+    B0 --- B1 --- B2 --- B3
+```
+
 - **1位**：符号位，永远是 0（保证正数）
 - **41位时间戳**：毫秒级，从某个自定义起始时间算起，可以用约 69 年
 - **10位机器 ID**：支持 1024 台机器（可以拆分为 5 位数据中心 + 5 位机器）
@@ -203,12 +212,20 @@ class SnowflakeIdGenerator {
 
 ### 双缓冲优化
 
-```
-当前号段用到 50% 时，异步申请下一个号段（Buffer）
-用完当前号段时，直接切换到 Buffer（无需等待 DB）
-
-好处：用 DB 的速率 = 1次 DB 请求 / 1000个 ID
-     号段用完等 DB 申请的等待消除了
+```mermaid
+sequenceDiagram
+    participant App as 应用服务
+    participant DB as 号段数据库
+    participant Buf as 备用号段 Buffer
+    App->>DB: 申请号段\nUPDATE max_id=max_id+step(1000)
+    DB-->>App: 号段 [1000, 2000)
+    Note over App: 本地分配 1000~2000
+    Note over App: 用到 50%（1500）时触发预申请
+    App->>DB: 异步申请下一号段
+    DB-->>Buf: 号段 [2000, 3000) 存入Buffer
+    Note over App: 1000~2000 用完 → 无缝切换到 Buffer
+    Note over App,DB: DB 访问频率 = 1次 / 1000个ID
+    Note over App,DB: 无需等待，切换瞬间完成
 ```
 
 ### 号段模式的优缺点

@@ -205,41 +205,55 @@ flowchart TD
 
 ## 撮合流程（Match Flow）
 
-```
-[乘客发起打车]
-    ↓
-1. 查找附近空闲司机（GEORADIUS）
-2. 按距离排序，取前 3 名候选司机
-3. 向第 1 名司机发送行程请求（WebSocket Push）
+```mermaid
+sequenceDiagram
+    participant Rider as 乘客
+    participant Match as 撮合服务
+    participant Redis as Redis GEO
+    participant D1 as 候选司机1
+    participant D2 as 候选司机2
+    participant Trip as 行程服务
 
-司机端：
-  收到请求 → 弹出提示框（10 秒倒计时）
-  → 接单：立即确认，撮合成功
-  → 拒绝/超时：尝试第 2 名司机
-
-撮合失败（附近没有司机）：
-  扩大搜索半径（5km → 10km → 20km）
-  若仍无司机 → 返回"当前区域无司机"
-  
-乘客 Cancel 的处理：
-  乘客等待时可以取消，撤销 Pending 状态的匹配请求
+    Rider->>Match: 发起打车请求
+    Match->>Redis: GEORADIUS 查找5km内空闲司机
+    Redis-->>Match: [司机1(0.3km), 司机2(0.8km), ...]
+    Match->>D1: WebSocket Push: 行程请求（10秒倒计时）
+    alt 司机1 接单
+        D1-->>Match: ✅ 接单
+        Match->>Trip: 创建行程 (rider, driver1)
+        Trip-->>Rider: 司机已接单，正在赶来
+    else 司机1 拒绝/超时
+        Match->>D2: WebSocket Push: 行程请求
+        D2-->>Match: ✅ 接单
+        Match->>Trip: 创建行程 (rider, driver2)
+    else 所有候选均拒绝
+        Match->>Redis: 扩大半径 5km→10km→20km
+        Match-->>Rider: ❌ 当前区域无司机
+    end
 ```
 
 ---
 
 ## 行程状态机
 
-```
-[Requested] → [Matching] → [Accepted] → [DriverArrived]
-                                               ↓
-                                       [InProgress]（行程进行中）
-                                               ↓
-                                       [Completed]
+```mermaid
+stateDiagram-v2
+    [*] --> Requested : 乘客发起打车
+    Requested --> Matching : 开始撮合
+    Requested --> Cancelled : 乘客取消
 
-另外：
-  [Requested] → [Cancelled]（乘客取消）
-  [Matching]  → [NoDriverFound]（超时无匹配）
-  [Accepted]  → [Cancelled]（司机取消）
+    Matching --> Accepted : 司机接单
+    Matching --> NoDriverFound : 超时无匹配
+
+    Accepted --> DriverArrived : 司机到达上车点
+    Accepted --> Cancelled : 司机取消
+
+    DriverArrived --> InProgress : 乘客上车出发
+    InProgress --> Completed : 到达目的地 + 结算
+
+    Completed --> [*]
+    Cancelled --> [*]
+    NoDriverFound --> [*]
 ```
 
 ```sql

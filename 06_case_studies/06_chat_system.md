@@ -92,6 +92,32 @@ flowchart TD
 5. 消息状态更新为"已送达"
 ```
 
+```mermaid
+sequenceDiagram
+    participant A as 用户A
+    participant S1 as Chat Server 1
+    participant Redis as Redis Session Map
+    participant S2 as Chat Server 2
+    participant B as 用户B
+    participant Cassandra as Cassandra
+
+    A->>S1: WebSocket: 发消息给B
+    S1->>S1: 生成 message_id (Snowflake)
+    S1->>Cassandra: 持久化消息
+    S1->>Redis: 查询: user_B → server_2
+    S1->>S2: RPC: deliver(userId=B, message)
+    alt 用户B 在线
+        S2->>B: WebSocket Push 消息
+        B-->>S2: ACK 已收到
+        S2-->>S1: 通知送达
+        S1-->>A: ✓✓ 已送达
+    else 用户B 离线
+        S2->>Cassandra: 消息已持久化，等B上线拉取
+        S2->>B: APNs/FCM: "您有新消息"（通知）
+        Note over B,Cassandra: B上线后 sync: last_seen_id<br/>→ 拉取离线消息
+    end
+```
+
 ### 群聊消息
 
 ```
@@ -111,6 +137,19 @@ flowchart TD
    所有订阅了该 Channel 的 Chat Server 收到消息
    每台 Server 检查哪些在线用户在群 G 里，推给他们
    → 从 O(群成员数) 的点对点 RPC → O(服务器数量) 的广播
+```
+
+```mermaid
+flowchart TD
+    A["用户A\n发群消息"] --> S1["Chat Server 1"]
+    S1 --> Cassandra["持久化\nCassandra"]
+    S1 --> PubSub["Redis Pub/Sub\nChannel: group:G"]
+    PubSub --> S2["Chat Server 2\n检查哪些用户在群G"]
+    PubSub --> S3["Chat Server 3\n检查哪些用户在群G"]
+    PubSub --> S4["Chat Server N..."]
+    S2 -->|"在线成员推送"| Users2["用户C, 用户D\n(在Server 2上)"]
+    S3 -->|"在线成员推送"| Users3["用户E, 用户F\n(在Server 3上)"]
+    Note["O(服务器数量) 广播\n而非 O(500人) 点对点RPC"]
 ```
 
 ---

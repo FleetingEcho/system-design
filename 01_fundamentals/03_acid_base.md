@@ -27,6 +27,22 @@ COMMIT;
 
 如果第二条 UPDATE 失败（比如 B 账户不存在），整个事务回滚，A 的余额不会减少。
 
+```mermaid
+sequenceDiagram
+    participant App as 应用
+    participant DB as 数据库
+    App->>DB: BEGIN TRANSACTION
+    App->>DB: UPDATE A: balance - 100
+    App->>DB: UPDATE B: balance + 100
+    alt 所有操作成功
+        App->>DB: COMMIT
+        DB-->>App: ✅ 持久化成功
+    else 任一步骤失败
+        DB-->>App: ❌ 自动 ROLLBACK
+        Note over DB: A 余额恢复，数据库回到事务前状态
+    end
+```
+
 **没有原子性会怎样**：A 扣了 100，B 没收到，钱凭空消失。
 
 ### C — Consistency（一致性）
@@ -87,6 +103,15 @@ Consistency 保证数据从一个"合法状态"转变到另一个"合法状态"�
 | REPEATABLE READ | 不会 | 不会 | 可能 | 中 |
 | SERIALIZABLE | 不会 | 不会 | 不会 | 最低 |
 
+```mermaid
+flowchart LR
+    RU["READ UNCOMMITTED\n脏读 ✓\n不可重复读 ✓\n幻读 ✓\n性能最高"]
+    RC["READ COMMITTED\n脏读 ✗\n不可重复读 ✓\n幻读 ✓\nPostgreSQL 默认"]
+    RR["REPEATABLE READ\n脏读 ✗\n不可重复读 ✗\n幻读 ✓*\nMySQL 默认\n(*InnoDB Gap Lock 防幻读)"]
+    SE["SERIALIZABLE\n脏读 ✗\n不可重复读 ✗\n幻读 ✗\n完全串行\n性能最低"]
+    RU -->|"更高隔离"| RC --> RR --> SE
+```
+
 MySQL InnoDB 默认是 **REPEATABLE READ**，PostgreSQL 默认是 **READ COMMITTED**。
 
 隔离级别越高，越安全，但并发性能越低（因为需要更多的锁）。
@@ -97,11 +122,18 @@ MySQL InnoDB 默认是 **REPEATABLE READ**，PostgreSQL 默认是 **READ COMMITT
 
 数据库通过 **WAL（Write-Ahead Log，预写日志）** 实现持久性：
 
-```
-客户端: COMMIT
-数据库: 1. 先把操作写入磁盘上的 WAL 日志
-        2. 返回成功给客户端
-        3. 异步地把数据写入实际的数据文件
+```mermaid
+sequenceDiagram
+    participant C as 客户端
+    participant DB as 数据库
+    participant WAL as WAL 日志（磁盘顺序写）
+    participant Data as 数据文件（磁盘）
+    C->>DB: COMMIT
+    DB->>WAL: 1. 写 WAL 日志（顺序写，极快）
+    WAL-->>DB: 写入成功
+    DB-->>C: 2. 返回提交成功 ✅
+    DB->>Data: 3. 异步写数据文件（可延迟）
+    Note over WAL,Data: 如果步骤3前崩溃：<br/>重启 → 读WAL → Redo已提交事务<br/>数据不丢失
 ```
 
 如果在步骤 3 之前崩溃，重启后数据库读取 WAL，重做所有已提交的事务，数据不会丢失。
@@ -115,6 +147,14 @@ MySQL InnoDB 默认是 **REPEATABLE READ**，PostgreSQL 默认是 **READ COMMITT
 BASE 是分布式系统（尤其是 NoSQL 数据库）采用的一致性模型，是 ACID 的"对立面"，但也是"务实的妥协"。
 
 BASE = **B**asically **A**vailable, **S**oft state, **E**ventually consistent
+
+```mermaid
+flowchart LR
+    BA["Basically Available\n基本可用\n故障时降级但核心服务不中断\n例：大促时搜索变慢但下单正常"]
+    SS["Soft State\n软状态\n节点间暂时可以不一致\n数据处于模糊中间态"]
+    EC["Eventually Consistent\n最终一致\n停止写入后\n所有节点最终收敛到同一值"]
+    BA --> SS --> EC
+```
 
 ### BA — Basically Available（基本可用）
 

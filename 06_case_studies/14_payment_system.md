@@ -79,15 +79,32 @@ flowchart TD
 
 支付请求的幂等性是**最重要的保证**：
 
-```
-场景：
-  用户点了"支付"按钮 → 请求发出 → 网络超时
-  用户不知道是否成功 → 再点一次"支付"
-  
-  没有幂等性：两次扣款！
-  有幂等性：第二次请求识别为重复，返回第一次的结果
+```mermaid
+sequenceDiagram
+    participant C as 客户端
+    participant PS as 支付服务
+    participant Redis as Redis
+    participant DB as MySQL
+    participant Pay as 扣款执行
 
-实现：客户端生成 idempotency_key（UUID），每次请求携带
+    C->>PS: POST /payments\n{idempotency_key: "uuid-xxx", amount: 100}
+    PS->>Redis: GET idem:uuid-xxx
+    alt 缓存命中（重复请求）
+        Redis-->>PS: 上次结果
+        PS-->>C: ✅ 返回上次结果（不重复扣款）
+    else 缓存未命中
+        PS->>DB: INSERT payment (status=processing)\nUNIQUE(idempotency_key)
+        alt 并发重复（DB唯一约束触发）
+            DB-->>PS: UniqueViolation
+            PS->>PS: sleep(100ms) + 重新查询
+        else 正常插入
+            PS->>Pay: 执行原子扣款/加款
+            Pay-->>PS: 成功/失败
+            PS->>DB: UPDATE status=success/failed
+            PS->>Redis: SETEX idem:uuid-xxx 86400s
+            PS-->>C: ✅ 支付结果
+        end
+    end
 ```
 
 ```typescript
@@ -188,12 +205,54 @@ COMMIT;
 
 ---
 
+## 支付状态机
+
+```mermaid
+stateDiagram-v2
+    [*] --> Pending : 用户提交支付请求\n写入 payment 记录
+    Pending --> Processing : 调用第三方支付 API\n(Stripe/支付宝)
+    Processing --> Success : 第三方回调成功\n执行扣款/加款
+    Processing --> Failed : 第三方回调失败\n或超时
+    Processing --> Timeout : 等待回调超时\n状态不明
+    Timeout --> Processing : 主动查询第三方状态\n(对账轮询)
+    Success --> Refunding : 触发退款
+    Refunding --> Refunded : 退款完成
+    Failed --> [*]
+    Refunded --> [*]
+    Success --> [*]
+```
+
+---
+
 ## 核心设计三：对接第三方支付
 
 支付宝/Stripe 是异步的，支付结果通过 Webhook 回调：
 
+```mermaid
+sequenceDiagram
+    participant C as 客户端
+    participant PS as 支付服务
+    participant Stripe as Stripe API
+    participant DB as MySQL
+    participant Kafka as Kafka
+    participant Merchant as 商家
+
+    C->>PS: POST /payments (amount, card)
+    PS->>Stripe: 创建 PaymentIntent
+    Stripe-->>PS: { id: "pi_xxx", client_secret }
+    PS->>DB: 记录 status=pending, external_id=pi_xxx
+    PS-->>C: client_secret（前端用于完成支付）
+
+    Note over C,Stripe: 用户在前端输入卡号，Stripe处理
+
+    Stripe->>PS: Webhook: payment_intent.succeeded
+    PS->>PS: 验证签名（防伪造）
+    PS-->>Stripe: 200 OK（立即返回，防止重试）
+    PS->>Kafka: 异步处理: stripe_events
+    Kafka->>DB: 幂等更新 status=success
+    Kafka->>DB: 执行扣款/加款（Ledger）
+    Kafka->>Merchant: Webhook回调商家
 ```
-[用户发起支付]
 
 1. 我们的系统 → 调用 Stripe API，创建 PaymentIntent
    POST https://api.stripe.com/v1/payment_intents
