@@ -171,6 +171,23 @@
 
 面试中常与系统设计并列考察，尤其是国内大厂和外企。用 TypeScript 实现，每题含类图、完整代码、追问解答。
 
+### 推荐刷题顺序（前端 / 全栈）
+
+| 优先级 | 题目 | 文件 | 核心模式 |
+|--------|------|------|---------|
+| ⭐ 必须会 | 停车场 | [01](08_ood/01_parking_lot.md) | 多态 + Strategy |
+| ⭐ 必须会 | LRU Cache | [02](08_ood/02_lru_cache.md) | HashMap + 双向链表 |
+| ⭐ 必须会 | 自动贩卖机 | [05](08_ood/05_vending_machine.md) | State 模式 |
+| 重点掌握 | ATM 机 | [18](08_ood/18_atm_machine.md) | State 模式进阶 |
+| 重点掌握 | 购物车 | [13](08_ood/13_shopping_cart.md) | 多态 + Strategy |
+| 重点掌握 | 聊天室 | [16](08_ood/16_chat_room.md) | Mediator + Observer |
+| 重点掌握 | 日志聚合器 | [17](08_ood/17_logger.md) | Singleton + CoR + Strategy |
+| 有余力再看 | 电影院订票 | [21](08_ood/21_cinema_booking.md) | 并发防超卖 |
+| 有余力再看 | LFU Cache | [22](08_ood/22_lfu_cache.md) | 双 HashMap O(1) |
+| 有余力再看 | Twitter OOD | [15](08_ood/15_twitter_ood.md) | 多态 + 推拉模式 |
+
+> **配合使用**：做题前先读 [09_ood_guide/09_interview_guide.md](09_ood_guide/09_interview_guide.md)（45分钟框架 + 话术），做题时对照 [09_ood_guide/13_uml_cheatsheet.md](09_ood_guide/13_uml_cheatsheet.md) 练习白板画图。
+
 | 文件 | 题目 | 核心考点 |
 |------|------|---------|
 | [00 方法论](08_ood/00_ood_framework.md) | OOD 面试框架 | SOLID 原则 / 常用设计模式 / 类图速记 |
@@ -217,7 +234,22 @@
 
 从零系统学习面向对象设计，全程 TypeScript。适合 OOD 基础薄弱或想系统梳理的读者。
 
-**学习路径**：先读基础四大特性（01-04）→ SOLID 原则（05）→ 三大类设计模式（06-08）→ 面试方法论（09）→ TS 高级类型（10）→ 反模式识别（11）→ GRASP 原则（12）→ UML 速查（13）
+**学习路径**：
+
+```
+基础四大特性（01-04）
+    ↓
+SOLID 原则（05）          ← 面试最高频，必须能举例
+    ↓
+三大类设计模式（06-08）   ← 结合 08_ood 实战题一起看
+    ↓
+面试方法论（09）          ← 上场前必读，有完整话术模板
+    ↓
+TS 高级类型（10）         ← 前端/全栈加分项
+反模式识别（11）          ← 能说出反模式让面试官眼前一亮
+GRASP 原则（12）          ← 选读，深度加分
+UML 速查（13）            ← 白板面试时随时查
+```
 
 | 文件 | 主题 | 核心内容 |
 |------|------|---------|
