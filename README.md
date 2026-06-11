@@ -1,6 +1,6 @@
 # 系统设计面试笔记
 
-面向面试的系统设计自学文档。81 篇，覆盖从基础概念到完整系统设计的全链路。
+面向面试的系统设计自学文档。91 篇，覆盖从基础概念到完整系统设计的全链路。
 
 **核心线索**：一个系统在规模变大、节点增多、网络不可靠时，会在哪里崩溃？我们怎么应对？
 
@@ -205,3 +205,24 @@
 | [03 Netflix](07_real_world/03_netflix.md) | Netflix | Open Connect 自建 CDN；预推送；HLS 自适应码率；混沌工程 |
 | [04 Discord](07_real_world/04_discord.md) | Discord | MongoDB→Cassandra→ScyllaDB 迁移；SFU 语音；大群 Fanout 分片 |
 | [05 WhatsApp](07_real_world/05_whatsapp.md) | WhatsApp | Erlang 200 万连接/台；E2EE Signal Protocol；消息不持久化设计 |
+
+---
+
+## 09 OOD 入门精讲
+
+从零系统学习面向对象设计，全程 TypeScript。适合 OOD 基础薄弱或想系统梳理的读者。
+
+**学习路径**：先读基础四大特性（01-04）→ SOLID 原则（05）→ 三大类设计模式（06-08）→ 面试方法论（09）
+
+| 文件 | 主题 | 核心内容 |
+|------|------|---------|
+| [00 什么是 OOD](09_ood_guide/00_what_is_ood.md) | 概述 | 类 vs 对象 / 三种类关系 / interface vs abstract / 四大支柱导览 |
+| [01 封装](09_ood_guide/01_encapsulation.md) | Encapsulation | 访问修饰符 / 不变量保护 / Getter-Setter 正确用法 / 不泄露内部集合 |
+| [02 抽象](09_ood_guide/02_abstraction.md) | Abstraction | interface vs abstract class 决策树 / 抽象层次一致性 / 依赖注入边界 |
+| [03 继承与组合](09_ood_guide/03_inheritance.md) | Inheritance | 脆弱基类问题 / Composition over Inheritance / Square-Rectangle 陷阱 / Mixin |
+| [04 多态](09_ood_guide/04_polymorphism.md) | Polymorphism | 子类型多态 / 泛型参数多态 / 函数重载 / 消灭 if-else / 鸭子类型 |
+| [05 SOLID](09_ood_guide/05_solid.md) | SOLID 原则 | SRP / OCP / LSP / ISP / DIP — 每条原则含反例→正例对比 |
+| [06 创建型模式](09_ood_guide/06_creational_patterns.md) | Creational | Factory Method / Abstract Factory / Builder（链式 API）/ Singleton / Prototype |
+| [07 结构型模式](09_ood_guide/07_structural_patterns.md) | Structural | Composite / Decorator（动态叠加）/ Adapter / Facade / Proxy（懒加载/缓存/权限）|
+| [08 行为型模式](09_ood_guide/08_behavioral_patterns.md) | Behavioral | Strategy / Observer / State / Command（Undo/Redo）/ CoR / Template Method |
+| [09 面试方法论](09_ood_guide/09_interview_guide.md) | 面试指南 | 45分钟时间分配 / 需求澄清话术 / 类图速绘 / 扩展性追问应对 / 题目难度分级 |
