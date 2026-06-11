@@ -153,6 +153,20 @@
 
 ---
 
+## 08 OOD 面向对象设计
+
+面试中常与系统设计并列考察，尤其是国内大厂和外企。用 TypeScript 实现，每题含类图、完整代码、追问解答。
+
+| 文件 | 题目 | 核心考点 |
+|------|------|---------|
+| [00 方法论](08_ood/00_ood_framework.md) | OOD 面试框架 | SOLID 原则 / 常用设计模式 / 类图速记 |
+| [01 停车场](08_ood/01_parking_lot.md) | Parking Lot | 多车型多态 / Strategy 计费 / 车位分配 |
+| [02 LRU Cache](08_ood/02_lru_cache.md) | LRU Cache | HashMap + 双向链表 / O(1) get & put |
+| [03 电梯系统](08_ood/03_elevator.md) | Elevator System | 状态机 / SCAN 调度 / Strategy 模式 |
+| [04 扑克牌游戏](08_ood/04_card_game.md) | Card Game (Blackjack) | 抽象层次 / Template Method / Ace 点数逻辑 |
+
+---
+
 ## 07 真实公司架构拆解
 
 理解真实系统如何演进，比死记架构图更有价值。每篇聚焦**为什么这么做**，而不是结果是什么。
