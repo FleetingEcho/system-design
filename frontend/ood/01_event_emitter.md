@@ -78,6 +78,36 @@ EventEmitter
 
 ---
 
+## 白板版（面试15分钟）
+
+```typescript
+// 面试写这个版本，生产实现见下方完整版
+class EventEmitter {
+  private map = new Map<string, Function[]>();
+
+  on(event: string, fn: Function) {
+    if (!this.map.has(event)) this.map.set(event, []);
+    this.map.get(event)!.push(fn);
+  }
+
+  off(event: string, fn: Function) {
+    this.map.set(event, (this.map.get(event) ?? []).filter(f => f !== fn));
+  }
+
+  emit(event: string, ...args: unknown[]) {
+    // 省略：错误处理 / 边界检查
+    this.map.get(event)?.slice().forEach(fn => fn(...args));
+  }
+
+  once(event: string, fn: Function) {
+    const wrap = (...args: unknown[]) => { fn(...args); this.off(event, wrap); };
+    this.on(event, wrap);
+  }
+}
+```
+
+---
+
 ## 实现
 
 ```typescript
@@ -280,6 +310,48 @@ const ee = new TypedEventEmitter<MyEvents>();
 ee.on('data', (msg, code) => {});    // msg: string, code: number ✓
 ee.on('data', (msg: number) => {});  // TS 错误 ✓
 ```
+
+---
+
+## 常见踩坑
+
+**踩坑1：emit 时直接遍历原数组**
+❌ 错误：`listeners.forEach(fn => fn(...args))`，listener 内部调用 `off` 会修改正在迭代的数组，导致后续 listener 被跳过。
+✓ 正确：遍历前先复制一份快照：`[...listeners].forEach(fn => fn(...args))`。
+原因：`forEach` 迭代时数组长度变化会导致部分 listener 被跳过，且行为依赖 JS 引擎实现。
+
+**踩坑2：off 移除 once 注册的 listener 失败**
+❌ 错误：`off('event', fn)` 后 `once` 注册的 fn 仍然触发，因为 once 内部创建了包装函数存入 listeners，`off` 找不到原始 fn。
+✓ 正确：once 创建的包装器必须带 `_original` 标记，`off` 时同时检查 `wrapper._original === listener`。
+原因：直接比较函数引用，包装器与原始函数是两个不同的对象。
+
+**踩坑3：once 先调用 listener 再 off**
+❌ 错误：`fn(...args); this.off(event, wrap);`，如果 fn 内部抛出异常，off 永远不会执行，变成永久订阅。
+✓ 正确：先 off 再调用：`this.off(event, wrap); fn(...args);`。
+原因：先移除保证即使 listener 出错，也不会重复触发。
+
+**踩坑4：忘记内存泄漏防护**
+❌ 错误：无限次 `on` 同一事件而不 `off`，listeners 数组无限增长，Node.js 进程内存泄漏。
+✓ 正确：超过 `maxListeners`（默认 10）时打印警告，提示调用方检查是否忘记 off。
+原因：循环中注册 listener 或组件卸载时未清理是最常见场景。
+
+**踩坑5：error 事件没有监听时直接 throw**
+❌ 错误：所有事件的 listener 出错都被 catch 掉静默失败。
+✓ 正确：`'error'` 事件比较特殊，如果没有监听 error 事件，emit('error') 应该抛出（与 Node.js 行为一致）。
+原因：`error` 事件用于传递运行时错误，静默忽略会导致问题难以排查。
+
+---
+
+## 扩展性追问
+
+**Q: 如何支持通配符事件（`on('user:*', handler)`）？**
+思路：on 注册时将含 `*` 的事件名存入单独的 wildcardMap；emit 时除了精确匹配，还遍历 wildcardMap，将事件名转换为正则（`user:*` → `/^user:.+$/`）逐一测试。键的解析可以在 on 时预编译为 RegExp 缓存，避免 emit 时重复创建正则对象。
+
+**Q: 如何实现 async emit，等所有 listener 完成后 resolve？**
+思路：将 emit 改为返回 `Promise.allSettled(listeners.map(fn => Promise.resolve(fn(...args))))`，这样异步 listener 的 reject 不会中断其他 listener，调用方可以检查 allSettled 的结果处理失败。注意 slice 快照仍然必要。
+
+**Q: 如何添加 maxListeners 警告，并让调用方可以关闭它？**
+思路：在 `_addListener` 中判断 `listeners.length >= this._maxListeners`，打印带事件名的警告。提供 `setMaxListeners(Infinity)` 允许关闭限制，或者 `emitter.setMaxListeners(0)` 表示不限制。Node.js 16+ 支持 `process.setMaxListeners()` 设置全局默认值，可以参考这个 API 设计。
 
 ---
 

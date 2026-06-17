@@ -358,6 +358,35 @@ export default function ProductPage({ params }: { params: { id: string } }) {
 **Q: Server Component 和 Client Component 的边界如何决定？**
 A: 从服务端开始，尽量靠近叶子节点才加 `'use client'`。规则：需要交互（onClick、onChange）或需要浏览器 API（localStorage、window）时才用 Client Component；数据获取、访问数据库、用环境变量（服务端）时用 Server Component。交互部分尽量小（只包含按钮/输入框），数据逻辑保留在 Server Component。
 
+## 常见踩坑
+
+**踩坑1：在 Server Component 中使用 useState/useEffect**
+❌ 错误：在无 `'use client'` 指令的 Server Component 中写 `useState`，Next.js 报错："useState can only be used in a Client Component"。
+✓ 正确：需要状态和副作用的组件加 `'use client'` 指令；数据获取和静态渲染逻辑放 Server Component。
+原因：Server Component 在服务器运行，不存在"状态"和"副作用"的概念，这些是客户端 React 的功能。
+
+**踩坑2：`'use client'` 组件中直接 import 大型服务端库**
+❌ 错误：Client Component 中 `import { prisma } from '@/lib/db'`，Prisma 被打包进客户端 bundle，泄露数据库凭证和 500KB+ 的 bundle 增量。
+✓ 正确：数据库操作只在 Server Component 或 Server Action 中执行，通过 props 将数据传给 Client Component。
+原因：`'use client'` 边界内的代码会被打包到发送给浏览器的 JS 中，服务端专用代码绝对不能出现在 Client Component。
+
+**踩坑3：未使用 `revalidateTag` 导致数据更新后用户看到旧内容**
+❌ 错误：商品价格更新后，ISR 缓存的商品详情页仍然显示旧价格，用户刷新也没用（因为 Full Route Cache 还有效）。
+✓ 正确：在 Server Action（处理价格更新）中调用 `revalidateTag('product-price')`，精确失效相关缓存。
+原因：Next.js 的 Data Cache 和 Full Route Cache 默认永久有效，必须主动触发 revalidation 才能更新。
+
+**踩坑4：Server Action 表单提交忘记 CSRF 保护**
+❌ 错误：认为 Server Action 自动防 CSRF 而跳过安全检查，实际上在某些配置下第三方页面可以提交到你的 Server Action 端点。
+✓ 正确：Next.js 15+ 的 Server Actions 内置了 Origin 验证，但自定义 Action 端点需要手动验证请求来源或使用 CSRF token。
+原因：Server Action 本质上是 POST 请求，与普通 API endpoint 面临相同的 CSRF 风险。
+
+**踩坑5：Streaming 中错误边界粒度太粗导致整页降级**
+❌ 错误：整个页面只有一个 `<ErrorBoundary>`，任何 Suspense 子树中的数据获取失败都导致整页显示错误状态，用户体验差。
+✓ 正确：为每个独立的 Suspense 边界配置独立的 `<ErrorBoundary>`，让其他区域正常显示，只有失败的部分降级。
+原因：Streaming + Suspense 的设计目标就是"部分失败不影响整体"，精细的 ErrorBoundary 粒度是实现这一目标的关键。
+
+---
+
 **Q: Next.js 的 Data Cache 和浏览器缓存有什么区别？**
 A: Data Cache 是 Next.js 在服务端维护的 fetch 响应缓存（存在服务端文件系统或 Redis），所有用户共享，可以通过 `revalidateTag`/`revalidatePath` 主动清除。浏览器缓存是每个用户独立的，由 HTTP Cache-Control 头控制。两者独立：Data Cache 控制服务端到数据源的请求，Browser Cache 控制浏览器到 Next.js 服务器的请求。
 

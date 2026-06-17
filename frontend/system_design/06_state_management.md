@@ -507,6 +507,35 @@ function CheckoutForm() {
 
 ## 面试常见追问
 
+## 常见踩坑
+
+**踩坑1：把服务端状态（API 响应）放进 Redux/Zustand**
+❌ 错误：`dispatch({ type: 'SET_USERS', payload: users })`，手动管理 loading/error/缓存/过期，大量样板代码。
+✓ 正确：服务端状态用 TanStack Query（`useQuery`/`useMutation`），自动缓存、去重请求、后台刷新。
+原因：服务端状态本质上是异步缓存，TanStack Query 的设计就是为此，Redux 做这件事代码量是其 10 倍。
+
+**踩坑2：Context 用于高频更新导致全树重渲染**
+❌ 错误：将 `scrollPosition`（每帧更新）或搜索关键词放入全局 Context，所有消费组件每次都重渲染。
+✓ 正确：高频状态用 Zustand 并精确订阅（`useStore(state => state.count)`），或用 `useRef` + 发布订阅绕过 React 渲染。
+原因：Context 任何字段变化都会触发所有消费者重渲染，不支持 selector 细粒度订阅。
+
+**踩坑3：Zustand 中直接在 set 外修改 state 对象**
+❌ 错误：`useStore.getState().items.push(newItem)`，直接修改 state 引用，组件不会感知到变化，UI 不更新。
+✓ 正确：通过 `set` 方法：`useStore.setState(s => ({ items: [...s.items, newItem] }))`，产生新引用触发更新。
+原因：Zustand 基于引用比较检测变化，直接改原对象不会产生新引用，订阅者不触发。
+
+**踩坑4：TanStack Query 的 staleTime 设为 0 导致频繁重复请求**
+❌ 错误：每次组件挂载都重新发请求（staleTime 默认 0），同一页面内多个组件用同一 queryKey 却各自触发网络请求。
+✓ 正确：根据数据特性设置合理 staleTime（如用户信息 5 分钟：`staleTime: 5 * 60 * 1000`），同 queryKey 的请求自动去重共享。
+原因：staleTime 控制"数据被视为新鲜的时长"，为 0 时每次 focus 都会 refetch，高频场景下浪费带宽。
+
+**踩坑5：忘记在组件卸载时取消 TanStack Query 订阅**
+❌ 错误：这其实不需要手动处理，但常见误区是手动写 `useEffect` 来"取消订阅"，反而干扰 TQ 的内部状态。
+✓ 正确：TanStack Query 自动管理订阅生命周期，组件卸载时自动取消 observer，无需手动清理。
+原因：手动干预 TQ 内部订阅机制会导致缓存不一致，信任库的抽象而不是重复实现。
+
+---
+
 **Q: Context API 为什么不适合高频更新的全局状态？**
 A: Context 更新时所有消费该 Context 的组件都会重渲染，即使它们用的字段没有变化。Zustand / Jotai 通过精确订阅避免这个问题。Context 适合低频更新的全局数据（主题、语言、登录用户）。
 

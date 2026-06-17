@@ -465,6 +465,30 @@ A: Atomic Design（原子、分子、有机体、模板、页面）是 UI 组件
 **Q: Monorepo 构建速度慢怎么办？**
 A: ①Turborepo/Nx 的远程缓存（Remote Cache）：CI 构建结果上传到云端，其他开发者/CI 直接复用（零重复构建）；②只构建/测试受影响的包（`--affected`）；③增量类型检查（TypeScript Project References）；④Docker 层缓存（node_modules 单独一层，代码变化不重新安装依赖）。
 
+## 常见踩坑
+
+**踩坑1：FSD 架构中 feature 层相互引用**
+❌ 错误：`features/cart` 直接导入 `features/auth` 的用户状态，形成 feature 层的循环或双向依赖，违反 FSD 单向规则。
+✓ 正确：共享状态提取到 `entities/user` 层，feature 只从 entities 或 shared 获取数据，不直接引用其他 feature。
+原因：FSD 的核心规则是"高层不能被低层引用"，feature 之间的互相依赖打破了模块边界，导致修改一个影响多个。
+
+**踩坑2：Monorepo 中 workspace 包没有严格的 public API**
+❌ 错误：业务代码直接从 `@company/ui/src/components/Button/index.ts` 深路径导入，绕过包的 public API，UI 库重构内部结构后所有消费方编译报错。
+✓ 正确：每个 workspace 包的 `package.json` 配置 `exports` 字段明确声明 public entry，内部结构变化不影响外部接口。
+原因：包的 public API 是团队间的契约，深路径导入是"实现细节依赖"，违反封装原则。
+
+**踩坑3：组件放错层级（所有组件放 components 目录）**
+❌ 错误：所有组件不分业务/通用堆在 `src/components/`，随着项目增长找不到文件，业务逻辑和通用逻辑耦合在一起。
+✓ 正确：区分通用 UI 组件（`shared/ui`）、业务实体组件（`entities/product`）、特性组件（`features/checkout`），按 FSD 或类似分层放置。
+原因：混放导致两个问题：难以查找（索引性差）+ 难以复用（业务逻辑和通用逻辑耦合，无法单独提取）。
+
+**踩坑4：过早引入 Monorepo 带来巨大配置开销**
+❌ 错误：团队 3 人、1 个应用时就上 Turborepo + PNPM Workspace，花大量时间配置 pipeline、包间依赖，实际没有代码需要共享。
+✓ 正确：单一应用用单仓库，等到真正需要跨应用共享代码（2+ 个应用、团队 > 10 人）再迁移 Monorepo。
+原因：Monorepo 工具链有实质性的配置和维护成本，小团队早期应集中精力在业务而不是工程基础设施。
+
+---
+
 **Q: 大型项目中如何避免循环依赖？**
 A: ①FSD 单向依赖规则（根本解法）；②dependency-cruiser 在 CI 中检测；③如果两个 feature 需要互相引用，说明它们应该合并，或者提取公共部分到 entities/shared；④用事件/消息总线解耦（但会使代码更难追踪，谨慎使用）。
 

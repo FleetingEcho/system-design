@@ -487,6 +487,30 @@ A: Googlebot 能执行 JS，但有延迟（可能是几天）且不保证完全�
 **Q: 如何验证结构化数据是否正确？**
 A: Google 的 Rich Results Test（search.google.com/test/rich-results），输入 URL 或 HTML，检查 JSON-LD 是否有效并预览富摘要效果。也可以用 Schema.org Validator。
 
+## 常见踩坑
+
+**踩坑1：SPA（CSR）的页面内容无法被 Google 索引**
+❌ 错误：所有内容由 JS 动态渲染，Googlebot 爬取时拿到的是空 `<div id="root"></div>`，内容无法索引，SEO 为零。
+✓ 正确：SEO 重要的页面（首页/产品页/博客）必须走 SSR 或 SSG，确保 HTML 中包含完整内容。
+原因：虽然 Google 声称能执行 JS，但 CSR 页面的爬取存在延迟和不确定性，关键内容不能依赖 JS 执行。
+
+**踩坑2：每个页面的 `<title>` 和 `<meta description>` 完全相同**
+❌ 错误：所有页面 title 都是"我的网站 - 首页"，Google 无法区分不同页面的主题，导致点击率（CTR）极低。
+✓ 正确：每个页面生成唯一的、包含核心关键词的 title（< 60字符）和 description（< 160字符）。
+原因：title 是 Google 展示在搜索结果中的标题，是影响点击率最重要的因素之一。
+
+**踩坑3：规范链接（canonical）未正确配置导致内容重复**
+❌ 错误：`/product/123` 和 `/product/123?ref=email` 被 Google 视为两个 URL，相同内容分散了 PageRank。
+✓ 正确：所有带参数的 URL 指向 canonical URL：`<link rel="canonical" href="/product/123" />`。
+原因：URL 参数（分页/追踪参数/排序参数）会产生大量重复内容 URL，canonical 告诉 Google 哪个是"官方版本"。
+
+**踩坑4：Sitemap 包含了 noindex 页面或 404 页面**
+❌ 错误：自动生成的 sitemap 包含所有路由，包括搜索结果页（`?q=...`）、用户个人页等 noindex 页面，Google 抓取后发现 noindex 标记，浪费爬取配额。
+✓ 正确：sitemap 只包含希望被索引的页面，与 robots.txt 和 noindex 保持一致，避免"sitemap 说收录，robots 说别来"的矛盾。
+原因：Googlebot 每天爬取你的网站有配额限制（Crawl Budget），sitemap 应引导爬虫高效利用配额。
+
+---
+
 **Q: 动态 OG 图片有性能问题吗？**
 A: @vercel/og 基于 Satori（JSX → SVG → PNG），运行在 Edge Runtime，生成时间约 50-100ms。建议给 OG 图片 API 加 CDN 缓存（`Cache-Control: public, max-age=86400`），相同参数只生成一次。
 

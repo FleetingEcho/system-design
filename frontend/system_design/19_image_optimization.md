@@ -371,6 +371,30 @@ A: AVIF 是 Chrome 85+ / Safari 16+，WebP 是 Chrome 23+ / Safari 14+。仍有�
 **Q: `width` 和 `height` 属性对 CLS 有什么影响？**
 A: 浏览器在图片加载完成前不知道高度，会先渲染 0 高度占位，图片加载后撑开，导致布局偏移（CLS 扣分）。设置 `width` + `height` 后，浏览器提前计算宽高比保留空间，消除 CLS。Next/Image 静态导入自动设置，动态 URL 需手动指定或用 `fill`。
 
+## 常见踩坑
+
+**踩坑1：首屏 LCP 图片使用 `loading="lazy"`**
+❌ 错误：Hero 图（LCP 元素）加了 `loading="lazy"`，浏览器延迟加载直到滚动到视口，LCP 直接劣化到 4-5s。
+✓ 正确：首屏图片（尤其是 LCP 候选）用 `loading="eager"`（默认值），搭配 `<link rel="preload">` 提前请求。
+原因：`loading="lazy"` 专为折叠线以下的图片设计，用于 LCP 图片会推迟浏览器发起图片请求的时机。
+
+**踩坑2：不提供 srcset 导致移动端加载桌面尺寸大图**
+❌ 错误：`<img src="banner-2400px.jpg" />`，移动端屏幕 375px 宽却下载了 2400px 的图片，浪费 10 倍带宽。
+✓ 正确：`<img srcset="banner-400.jpg 400w, banner-800.jpg 800w, banner-2400.jpg 2400w" sizes="(max-width: 768px) 100vw, 800px" />`。
+原因：`srcset` + `sizes` 让浏览器根据设备 DPR 和视口宽度自动选择最合适的图片尺寸。
+
+**踩坑3：WebP/AVIF 转换未做格式降级**
+❌ 错误：直接用 `<img src="image.avif" />`，iOS 15 以下不支持 AVIF，图片无法显示。
+✓ 正确：用 `<picture>` 元素提供格式降级：先 AVIF，再 WebP，最后 JPEG/PNG 作为 fallback。
+原因：AVIF 兼容性（2023 年 ~75%），WebP（~95%），不做降级会在部分用户设备上完全失败。
+
+**踩坑4：图片未设置 alt 属性影响可访问性和 SEO**
+❌ 错误：`<img src="product.jpg" />`，屏幕阅读器无法告知用户图片内容，Google Image Search 也无法正确索引。
+✓ 正确：内容图片加有意义的 alt（`alt="2024款 MacBook Pro 14寸 深空黑色"`）；纯装饰图片用 `alt=""`（空而非省略）。
+原因：缺少 alt 违反 WCAG 可访问性标准，且 Google 把 alt 文字作为图片 SEO 的重要信号。
+
+---
+
 **Q: 图片 CDN 和普通 CDN 有什么区别？**
 A: 普通 CDN 只缓存和分发静态资源（不改变内容）。图片 CDN（Cloudinary/Imgix）在 CDN 节点上**实时变换**图片（resize/格式转换/质量压缩），首次请求时处理并缓存，后续请求直接返回缓存。这样只需上传一份原图，CDN 按需生成所有变体。
 

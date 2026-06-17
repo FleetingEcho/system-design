@@ -454,6 +454,30 @@ Svelte (Vite)    ~3KB gzip   ← 编译器把框架代码变成原生 JS
 **Q: Next.js App Router vs Pages Router 怎么选？**
 A: 新项目用 App Router（React Server Components 是未来方向，更好的流式渲染和数据获取）。已有 Pages Router 项目不必急迁移，两者可在同一项目共存。
 
+## 常见踩坑
+
+**踩坑1：Next.js App Router 中误将 Server Component 标记为 Client Component**
+❌ 错误：数据获取组件加了 `'use client'` 指令，导致 async/await fetch 在客户端执行，失去了服务端数据预取和 SEO 的优势。
+✓ 正确：数据获取逻辑放在 Server Component（无 `'use client'`），只有需要交互（state/effect/事件）的叶子节点才用 Client Component。
+原因：`'use client'` 划定了客户端边界，边界内的所有子组件都变成 Client Component，粒度越小越好。
+
+**踩坑2：Remix 中 action 返回错误却不处理 400 状态码**
+❌ 错误：表单 action 验证失败时直接 `return json({ error: '...' })` 默认 200 状态码，屏幕阅读器和浏览器都以为成功。
+✓ 正确：`return json({ error: '...' }, { status: 400 })`，配合 `useActionData()` 在 UI 中展示错误信息。
+原因：HTTP 语义中 400 表示客户端请求错误，Remix 的渐进增强设计依赖正确的 HTTP 状态码。
+
+**踩坑3：Astro 中客户端 island 过多，抵消 MPA 性能优势**
+❌ 错误：页面上大量组件加 `client:load`，导致首屏需要下载和执行大量 JS，Astro 的零 JS 优势消失。
+✓ 正确：优先用 `client:idle`（空闲时加载）或 `client:visible`（进入视口时加载），减少关键路径 JS。
+原因：Astro 的 Island 架构价值在于按需激活，滥用 `client:load` 等于手动实现了一个低效 SPA。
+
+**踩坑4：框架选型不考虑团队已有技术栈和学习曲线**
+❌ 错误：团队全是 Vue 开发者，为了"时髦"上 Remix（React），引发大量学习成本和生产事故。
+✓ 正确：框架选型优先考虑团队熟悉度，其次是功能匹配度，最后才是社区热度。
+原因：团队的生产力和上手速度是实际项目最重要的约束，技术债务不只来自代码，也来自认知负担。
+
+---
+
 **Q: Remix 的 loader 和 Next.js 的 Server Components 哪个更好？**
 A: 解决不同问题。Remix loader 是路由级数据加载，与嵌套路由并行加载结合非常强大；RSC 是组件级数据加载，粒度更细。Remix 更贴近 Web 标准，Next.js 生态更完整。
 

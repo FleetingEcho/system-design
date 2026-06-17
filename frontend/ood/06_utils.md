@@ -37,6 +37,50 @@ graph LR
 
 ---
 
+## 白板版（面试15分钟）
+
+```typescript
+// 面试写这个版本，生产实现见下方完整版
+
+// debounce：停止调用后 delay ms 才执行
+function debounce<T extends unknown[]>(fn: (...args: T) => void, delay: number) {
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  return (...args: T) => {
+    if (timer) clearTimeout(timer);
+    // 省略：leading 模式 / cancel / flush
+    timer = setTimeout(() => { fn(...args); timer = null; }, delay);
+  };
+}
+
+// throttle：每 interval ms 最多执行一次
+function throttle<T extends unknown[]>(fn: (...args: T) => void, interval: number) {
+  let lastTime = 0;
+  return (...args: T) => {
+    const now = Date.now();
+    if (now - lastTime >= interval) {
+      lastTime = now;
+      fn(...args);
+      // 省略：trailing 调用 / 组件卸载时 clearTimeout
+    }
+  };
+}
+
+// memoize：相同参数不重复计算
+function memoize<T extends unknown[], R>(fn: (...args: T) => R): (...args: T) => R {
+  const cache = new Map<string, R>();
+  return (...args: T) => {
+    const key = JSON.stringify(args);
+    if (cache.has(key)) return cache.get(key)!;
+    const result = fn(...args);
+    cache.set(key, result);
+    return result;
+    // 省略：LRU 淘汰 / WeakMap key
+  };
+}
+```
+
+---
+
 ## Debounce（防抖）
 
 **问题**：搜索框输入时，每次按键都触发 API 请求，浪费资源。
@@ -383,6 +427,48 @@ const expensiveFibonacci = memoize((n: number): number => {
 // useCallback：缓存函数引用（函数的 memoize）
 const memoizedValue = useMemo(() => expensiveCalc(a, b), [a, b]);
 ```
+
+---
+
+## 常见踩坑
+
+**踩坑1：在 React 组件 render 中直接创建 debounce 函数**
+❌ 错误：`const debouncedSearch = debounce(search, 300);`  写在函数组件体内，每次渲染都创建新的 debounce 实例，timer 被重置，防抖完全失效。
+✓ 正确：用 `useMemo(() => debounce(search, 300), [])` 或 `useRef` 保存实例，确保只创建一次。
+原因：debounce 依赖闭包保存的 timer 跨调用存活，每次重新创建就丢失了上次的 timer。
+
+**踩坑2：throttle 用定时器版导致 trailing 延迟**
+❌ 错误：定时器版 throttle 在触发后等 interval ms 才真正执行，首次调用有延迟，体验差。
+✓ 正确：时间戳版（`Date.now() - lastTime >= interval`）立即执行首次调用（leading），无延迟感。
+原因：两种实现的语义不同——时间戳版 leading、定时器版 trailing，scroll 事件优先用时间戳版。
+
+**踩坑3：memoize 用 JSON.stringify 作 key 时对象键顺序不稳定**
+❌ 错误：`JSON.stringify({ a: 1, b: 2 })` 和 `JSON.stringify({ b: 2, a: 1 })` 在某些引擎中结果不同，导致相同参数缓存 miss。
+✓ 正确：提供自定义 `resolver` 函数生成稳定 key，或对参数对象做键排序后再序列化。
+原因：ECMAScript 规范中对象 key 的枚举顺序依赖插入顺序，调用方传参顺序不一致时 JSON.stringify 结果不同。
+
+**踩坑4：忘记在 React 组件卸载时 cancel debounce**
+❌ 错误：组件卸载后 timer 仍然在倒计时，到期后调用 setState，报 "Can't perform state update on unmounted component" 警告。
+✓ 正确：`useEffect(() => () => debouncedFn.cancel(), [debouncedFn])` 在卸载时取消 pending 的 timer。
+原因：定时器是独立于 React 生命周期的，组件卸载不会自动清理。
+
+**踩坑5：memoize 缓存对象引用而非深拷贝，外部修改缓存值导致脏读**
+❌ 错误：memoize 缓存的是计算结果的引用，外部代码修改了该对象，下次从缓存取出时拿到的是被改过的脏数据。
+✓ 正确：如果计算结果是可变对象，缓存时做深拷贝（或要求调用方不修改返回值，用 `Object.freeze`）。
+原因：Map 存引用，缓存命中返回的是同一个对象，外部改动直接污染缓存。
+
+---
+
+## 扩展性追问
+
+**Q: 如何给 debounce 添加 leading edge（首次立即执行）选项？**
+思路：新增 `leading` 参数（默认 false）；调用时检查 `timer === null`（当前无等待中的调用），如果是且 `leading` 为 true 则立即执行；之后仍然设置 timer，timer 到期时若 `trailing` 为 true 则再执行最后一次，否则只清除 timer。注意 leading + trailing 同时为 false 是无效配置。
+
+**Q: 如何给 throttle 添加 trailing call（interval 结束后补执行最后一次）？**
+思路：在时间戳版基础上，如果本次调用被节流跳过，记录 `lastArgs`；同时设置一个 timer 在 `remaining` ms 后执行（检查 `lastArgs` 非空则执行），timer 到期后清除 `lastArgs`。需要注意组件卸载时清除 timer 防止内存泄漏。
+
+**Q: 如何为 memoize 添加 LRU 淘汰策略（限制缓存大小）？**
+思路：利用 Map 的插入顺序特性模拟 LRU——命中时先 `cache.delete(key)` 再 `cache.set(key, value)`（移到末尾）；cache miss 时若 `cache.size >= maxSize` 则 `cache.delete(cache.keys().next().value)`（删除最久未用的头部）。这比维护双向链表+哈希表的标准 LRU 简单，但 delete+set 有轻微性能开销，适合面试场景。
 
 ---
 

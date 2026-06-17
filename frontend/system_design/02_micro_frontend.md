@@ -392,6 +392,35 @@ export class SubAppErrorBoundary extends React.Component {
 
 ---
 
+## 常见踩坑
+
+**踩坑1：子应用和主应用使用不同版本 React 导致 Hook 报错**
+❌ 错误：Module Federation shared 配置未设置 `singleton: true`，子应用和主应用各自加载了 React，调用 Hook 时报"Invalid hook call"。
+✓ 正确：在 webpack.config.js 的 shared 中配置 `react: { singleton: true, requiredVersion: '^18.0.0' }`，强制全局只有一个 React 实例。
+原因：React Hook 依赖全局的 React 实例存储 Fiber，多实例时 Hook 状态无法共享，直接报错。
+
+**踩坑2：子应用路由与主应用路由冲突**
+❌ 错误：主应用和子应用都监听 `popstate`，URL 变化时两套路由系统都响应，页面出现双重渲染或路由死循环。
+✓ 正确：主应用负责顶层路由（`/order/*` 分发给订单子应用），子应用只处理自己路径前缀下的二级路由，不监听顶层变化。
+原因：多个路由实例共用同一个 `window.history` 必须约定明确的路由所有权边界。
+
+**踩坑3：子应用样式污染主应用**
+❌ 错误：子应用全局 CSS（如 `body { font-size: 14px }`）在 mount 后影响到主应用和其他子应用的样式。
+✓ 正确：子应用样式做隔离——Shadow DOM 完全隔离，或 CSS Modules / CSS-in-JS，或运行时动态 inject/remove style 标签（随子应用挂载/卸载）。
+原因：全局 CSS 无命名空间，不同子应用之间样式选择器会相互覆盖。
+
+**踩坑4：子应用独立运行时忘记 fallback 数据**
+❌ 错误：子应用依赖主应用通过 props 传入用户信息，独立开发调试时主应用不存在，子应用直接报错无法启动。
+✓ 正确：子应用入口检测是否在微前端环境中（`window.__MICRO_APP__`），否则使用 mock 数据启动，支持独立开发调试。
+原因：子应用独立可运行是微前端架构的核心要求之一，保障各团队独立开发效率。
+
+**踩坑5：忘记在子应用卸载时清理副作用**
+❌ 错误：子应用 mount 时注册了全局事件监听（`window.addEventListener`）或 setInterval，卸载时没有清理，下次 mount 时副作用累积。
+✓ 正确：框架（qiankun/MicroApp）提供 `unmount` 生命周期钩子，在此清理所有全局副作用，包括 event listener、timer、全局变量。
+原因：微前端的子应用可能被多次挂载/卸载，每次 mount 都应该是干净的起点。
+
+---
+
 ## 面试常见追问
 
 **Q: Module Federation 的 singleton 如果版本不兼容怎么办？**

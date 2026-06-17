@@ -56,6 +56,51 @@ classDiagram
 
 ---
 
+## 白板版（面试15分钟）
+
+```typescript
+// 面试写这个版本，生产实现见下方完整版
+interface VNode { type: string; props: Record<string, unknown>; children: (VNode | string)[]; key?: string; _el?: Node; }
+
+function h(type: string, props: Record<string, unknown> | null, ...children: (VNode | string)[]): VNode {
+  return { type, props: props ?? {}, children, key: props?.key as string };
+}
+
+function createDOM(vnode: VNode | string): Node {
+  if (typeof vnode === 'string') return document.createTextNode(vnode);
+  const el = document.createElement(vnode.type);
+  vnode._el = el;
+  Object.entries(vnode.props).forEach(([k, v]) => {
+    if (k.startsWith('on')) el.addEventListener(k.slice(2).toLowerCase(), v as EventListener);
+    else el.setAttribute(k, String(v));
+  });
+  vnode.children.forEach(c => el.appendChild(createDOM(c)));
+  return el;
+}
+
+function patch(parent: Node, oldVNode: VNode | string | null, newVNode: VNode | string | null): void {
+  // 省略：key diff / 移动节点优化
+  if (!oldVNode) { parent.appendChild(createDOM(newVNode!)); return; }
+  if (!newVNode) { parent.removeChild((oldVNode as VNode)._el!); return; }
+  if (typeof oldVNode === 'string' || typeof newVNode === 'string') {
+    if (oldVNode !== newVNode) parent.replaceChild(createDOM(newVNode), (oldVNode as VNode)._el ?? parent.firstChild!);
+    return;
+  }
+  if (oldVNode.type !== newVNode.type) { parent.replaceChild(createDOM(newVNode), oldVNode._el!); return; }
+  const el = oldVNode._el as Element;
+  newVNode._el = el;
+  // 更新 props
+  Object.keys({ ...oldVNode.props, ...newVNode.props }).forEach(k => {
+    if (newVNode.props[k] !== oldVNode.props[k]) el.setAttribute(k, String(newVNode.props[k] ?? ''));
+  });
+  // 递归 diff children（无 key，按位置对比）
+  const max = Math.max(oldVNode.children.length, newVNode.children.length);
+  for (let i = 0; i < max; i++) patch(el, oldVNode.children[i] ?? null, newVNode.children[i] ?? null);
+}
+```
+
+---
+
 ## 需求分析
 
 ```
@@ -336,6 +381,43 @@ const newVdom = h('ul', null,
 // Diff + Patch（只有 3 次 DOM 操作：1次插入、1次移动、1次删除）
 diff(vdom, newVdom);
 ```
+
+---
+
+## 常见踩坑
+
+**踩坑1：列表不加 key 或用 index 作为 key**
+❌ 错误：`items.map((item, i) => h('li', { key: i }, item.name))`，在列表头部插入新项时，所有 key 都发生变化，等同于没有 key。
+✓ 正确：用稳定的唯一 ID（如数据库 ID）作为 key：`h('li', { key: item.id }, item.name)`。
+原因：key 用于在旧树中找到可复用的节点，index 作为 key 在插入/删除时会错误地复用不匹配的节点。
+
+**踩坑2：不同 type 的节点尝试复用**
+❌ 错误：old 是 `<div>`，new 是 `<section>`，尝试复用 DOM 并只更新属性，子树状态（input 的值、scroll 位置）残留。
+✓ 正确：type 不同时直接 `replaceChild`（销毁旧子树，创建新子树）。
+原因：React/Vue 都采用"不同 type 直接替换"的假设，这是 O(n) Diff 的三大前提之一。
+
+**踩坑3：VNode 的 props 直接存事件 listener 导致每次渲染都更新**
+❌ 错误：每次 render 传入新的箭头函数，diff 发现 props 不同（引用不等），每次都 removeEventListener + addEventListener。
+✓ 正确：事件委托（事件代理）或在 diff 时特殊处理事件属性（不做引用比较，只在首次挂载时绑定）。
+原因：箭头函数每次 render 都是新引用，引用比较始终不等，导致不必要的 DOM 操作。
+
+**踩坑4：patch 时忘记将 _el 传递给新 VNode**
+❌ 错误：复用 DOM 节点后，新 VNode 的 `_el` 为 undefined，导致下一次 diff 无法找到对应的真实 DOM。
+✓ 正确：`newVNode._el = oldVNode._el`，在复用时将真实 DOM 引用赋给新 VNode。
+原因：VNode 是下一次 diff 的 oldVNode，必须携带对应的真实 DOM 引用。
+
+---
+
+## 扩展性追问
+
+**Q: 如何支持带 key 的列表高效重排（keyed reconciliation）？**
+思路：为旧 children 建立 `Map<key, VNode>`；遍历新 children，命中 key 时复用旧 VNode 并 patch，未命中时创建新节点；遍历结束后删除旧 Map 中未被使用的节点。移动检测用 lastStableIndex：新位置比旧位置更靠前的节点需要 insertBefore。Vue 3 用最长递增子序列（LIS）进一步减少 DOM 移动次数。
+
+**Q: 如何在 VNode 层面支持函数组件（Component Diff）？**
+思路：VNode 的 type 除了 string，还允许是 `Function`（函数组件）；patch 时检测 type 是否为 Function，是则调用 `type(props)` 得到子 VNode 树再 diff，并为组件实例维护 `_instance`（存储 hooks 状态）；下次更新时同一组件 type 复用 `_instance` 而不是销毁重建。这是 React Reconciler 的核心思路。
+
+**Q: 如何将同步的递归 diff 改造为可中断的 Fiber 结构？**
+思路：将 VNode 树转换为链表（每个节点有 `child`、`sibling`、`return` 指针），用工作循环 `while (nextUnit) nextUnit = performUnitOfWork(nextUnit)` 替代递归；每个工作单元处理完后检查 `deadline.timeRemaining()`（或用 `MessageChannel`），时间不足则中止并 `requestIdleCallback` 继续，实现时间分片。
 
 ---
 

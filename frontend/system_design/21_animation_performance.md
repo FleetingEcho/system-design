@@ -465,6 +465,30 @@ A: `top/left` 属于几何属性，修改后浏览器必须重新计算 Layout�
 **Q: `will-change: transform` 为什么不能滥用？**
 A: 每个合成层都需要在 GPU 内存中存储该层的位图（Texture）。移动设备 GPU 内存有限（通常 256MB-1GB），层数过多会导致内存压力，触发层合并（Layer Squashing），反而造成掉帧。原则：只在即将动画的元素上短暂添加，动画结束后移除。
 
+## 常见踩坑
+
+**踩坑1：动画属性触发 Layout 或 Paint 导致掉帧**
+❌ 错误：用 `margin-left`、`width`、`top`、`background-color` 等属性做动画，每帧触发 Layout 重排或 Paint 重绘，60fps 无法维持。
+✓ 正确：动画只用 `transform`（位移/缩放/旋转）和 `opacity`，这两个属性只触发 Composite，GPU 处理，完全不占主线程。
+原因：浏览器渲染三层（Layout → Paint → Composite），只有 Composite 层的操作可以在合成线程独立执行，不阻塞主线程。
+
+**踩坑2：未用 `will-change` 提前创建合成层，导致首帧卡顿**
+❌ 错误：动画开始时浏览器才临时提升合成层，首帧有短暂卡顿（层提升需要时间）。
+✓ 正确：对即将动画的元素提前设置 `will-change: transform`，浏览器提前创建 GPU 层，动画开始时无需等待提升。
+原因：合成层提升（Layer Promotion）是异步的，`will-change` 让浏览器有时间提前准备，避免首帧延迟。
+
+**踩坑3：滥用 `will-change` 导致内存暴增**
+❌ 错误：对大量元素或整个页面设置 `will-change: transform`，每个 `will-change` 元素都占用单独的 GPU 内存（Texture），页面内存溢出，移动端崩溃。
+✓ 正确：只对真正需要动画的元素在动画前后动态添加/移除 `will-change`（JS 控制），或用 CSS 类切换。
+原因：每个 GPU 合成层都在显存中占用独立的纹理，大量层并存是内存杀手。
+
+**踩坑4：requestAnimationFrame 回调内做大量计算阻塞帧**
+❌ 错误：rAF 回调中做复杂的碰撞检测、物理计算或 DOM 查询，单帧耗时超过 16ms，动画掉帧。
+✓ 正确：将计算密集型逻辑移到 Web Worker，rAF 只做最终的 DOM 更新（transform 赋值），每帧保持 < 4ms 的 JS 执行时间。
+原因：rAF 在主线程执行，超过 16ms 的任务会导致下一帧延迟，动画不连贯。
+
+---
+
 **Q: CSS 动画和 JS 动画各自的优缺点？**
 A: CSS 动画：声明式、简单、浏览器可优化到合成线程（`transform/opacity`）；但难以精确控制时序、JS 无法干预中间帧、缓动函数受限。JS 动画（rAF/WAAPI）：完全可编程、可中途暂停/反向/读取状态；缺点是在主线程运行（rAF），主线程繁忙时掉帧。Framer Motion 结合了两者：声明式 API，底层用 WAAPI 在合成线程运行。
 

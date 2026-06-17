@@ -532,6 +532,30 @@ assertions: {
 **Q: ARIA role 和语义化 HTML 怎么选？**
 A: 语义化 HTML 优先。`<button>` 自带 `role="button"` + 键盘支持 + 默认样式重置，不需要手动添加 ARIA。ARIA 只用于原生 HTML 无法表达的复杂组件（Combobox、Tree、DataGrid）。错误使用 ARIA 比不用更糟（如在 `<button>` 上加 `role="button"` 是冗余的；在非交互元素上加 `role="button"` 但不处理键盘事件，则会误导辅助技术）。
 
+## 常见踩坑
+
+**踩坑1：用 `<div onClick>` 代替 `<button>` 实现按钮**
+❌ 错误：`<div className="btn" onClick={handleClick}>提交</div>`，键盘用户无法 Tab 到该元素，也无法 Enter/Space 触发，屏幕阅读器不知道它是按钮。
+✓ 正确：使用语义化 `<button type="button" onClick={handleClick}>提交</button>`，原生按钮自带键盘可访问性和 ARIA 角色。
+原因：`<button>` 原生支持 Tab 聚焦、Enter/Space 触发、`role="button"` ARIA 语义，div 需要手动模拟所有这些。
+
+**踩坑2：弹窗（Modal）没有焦点陷阱**
+❌ 错误：Modal 打开后，键盘用户 Tab 到 Modal 内的最后一个元素后，焦点跑到背后页面的元素上，屏幕阅读器宣告 Modal 外的内容，困惑用户。
+✓ 正确：Modal 打开时用 focus-trap 库将 Tab 循环限制在 Modal 内；关闭时将焦点返回到触发 Modal 的元素。
+原因：无焦点陷阱的 Modal 对键盘用户和屏幕阅读器用户来说等同于不可用，是 WCAG 2.1 失败标准。
+
+**踩坑3：颜色对比度不足导致低视力用户无法阅读**
+❌ 错误：浅灰色文字（`#999`）放在白色背景上，对比度约 2.8:1，远低于 WCAG AA 要求的 4.5:1。
+✓ 正确：用 Figma 或 Chrome DevTools 的对比度检查工具，确保正文文字对比度 ≥ 4.5:1，大字（18px+）≥ 3:1。
+原因：颜色对比度不足影响 3 亿以上色觉障碍用户和低视力老年人，也是 WCAG 合规的基础要求。
+
+**踩坑4：动态内容更新未通知屏幕阅读器**
+❌ 错误：表单提交后成功提示 toast 出现在页面一角，视觉上可见，但屏幕阅读器不会自动宣告动态插入的内容，用户不知道操作结果。
+✓ 正确：在 toast 容器上设置 `role="alert"` 或 `aria-live="polite"`，动态插入内容时屏幕阅读器会自动朗读。
+原因：屏幕阅读器默认只宣告当前焦点元素的内容，`aria-live` 区域的内容变化会被主动宣告。
+
+---
+
 **Q: 如何测试键盘可访问性？**
 A: 断开鼠标，用键盘操作整个页面：`Tab` 移动焦点、`Shift+Tab` 反向、`Enter/Space` 激活、方向键在组件内导航、`Escape` 关闭弹窗。检查：①所有交互都可到达；②焦点指示器可见（不要 `outline: none`）；③焦点顺序合理（与视觉顺序一致）；④弹窗有焦点陷阱。
 

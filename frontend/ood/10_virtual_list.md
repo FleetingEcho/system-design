@@ -81,6 +81,49 @@ classDiagram
 
 ---
 
+## 白板版（面试15分钟）
+
+```typescript
+// 面试写这个版本，生产实现见下方完整版
+import { useState, useCallback } from 'react';
+
+interface UseVirtualListOptions {
+  total: number;
+  itemHeight: number;      // 固定高度版本
+  viewportHeight: number;
+  overscan?: number;
+}
+
+function useVirtualList({ total, itemHeight, viewportHeight, overscan = 3 }: UseVirtualListOptions) {
+  const [scrollTop, setScrollTop] = useState(0);
+
+  // 省略：动态高度（heightMap + 二分查找）/ rAF 节流
+  const startIndex = Math.max(0, Math.floor(scrollTop / itemHeight) - overscan);
+  const visibleCount = Math.ceil(viewportHeight / itemHeight);
+  const endIndex = Math.min(total - 1, Math.floor(scrollTop / itemHeight) + visibleCount + overscan);
+  const offsetY = startIndex * itemHeight;
+  const totalHeight = total * itemHeight;
+
+  const onScroll = useCallback((e: React.UIEvent) => {
+    setScrollTop((e.target as HTMLElement).scrollTop);
+  }, []);
+
+  return { startIndex, endIndex, offsetY, totalHeight, onScroll };
+}
+
+// 使用：
+// const { startIndex, endIndex, offsetY, totalHeight, onScroll } = useVirtualList({ total: items.length, itemHeight: 60, viewportHeight: 500 });
+// <div style={{ height: viewportHeight, overflow: 'auto' }} onScroll={onScroll}>
+//   <div style={{ height: totalHeight, position: 'relative' }}>
+//     <div style={{ transform: `translateY(${offsetY}px)`, position: 'absolute', width: '100%' }}>
+//       {items.slice(startIndex, endIndex + 1).map((item, i) => <Row key={startIndex + i} item={item} />)}
+//     </div>
+//   </div>
+// </div>
+```
+
+---
+
 ## 为什么需要虚拟列表
 
 ```
@@ -436,6 +479,48 @@ function ProductionVirtualList({ items }: { items: Item[] }) {
 // 生产：直接用 TanStack Virtual（处理了 ResizeObserver 测量、
 //       水平虚拟化、Grid、infinite scroll、RTL 等边界情况）
 ```
+
+---
+
+## 常见踩坑
+
+**踩坑1：用 `position:top` 而非 `transform:translateY` 定位可见区偏移**
+❌ 错误：`<div style={{ top: offsetY }}>` 设置 top 值，每次滚动更新触发 Layout 重排，影响所有兄弟元素。
+✓ 正确：`<div style={{ transform: \`translateY(${offsetY}px)\` }}>` 只触发 Composite，GPU 处理。
+原因：`top` 是布局属性，修改后浏览器必须重新计算页面布局；`transform` 不影响文档流，纯 GPU 合成。
+
+**踩坑2：onScroll 不做节流，每帧触发多次 setState**
+❌ 错误：`onScroll` 直接 `setScrollTop(e.target.scrollTop)`，浏览器每帧可能触发多次 scroll 事件，导致多次 re-render。
+✓ 正确：用 `requestAnimationFrame` 节流，每帧最多更新一次：`onScroll = () => { if (!rafId) rafId = rAF(() => { setScrollTop(...); rafId = null; }); }`。
+原因：React setState 批处理可以合并部分更新，但 rAF 节流从根源减少回调次数。
+
+**踩坑3：动态高度时未考虑测量前的高度估算误差**
+❌ 错误：所有节点都用 `estimatedHeight` 计算 startIndex，测量后实际高度与估算差异大，导致 scrollTop 位置跳动（跳变）。
+✓ 正确：测量后更新 heightMap 并重新计算受影响的累积偏移；如果 scrollTop 对应的 item 高度发生变化，调整 scrollTop 补偿偏差，防止视图跳动。
+原因：累积误差会随列表滚动放大，越滚越"错位"。
+
+**踩坑4：key 用数组索引导致节点复用异常**
+❌ 错误：`key={i}`（相对索引），滚动时 startIndex 变化，渲染的节点虽然内容变了但 key 不变，React 认为是同一节点，跳过重新渲染，显示旧内容。
+✓ 正确：`key={startIndex + i}`（绝对索引），确保不同数据对应不同 key，强制更新渲染内容。
+原因：React 用 key 判断是否复用组件实例，相同 key 的节点内部状态会被保留，导致数据展示错乱。
+
+**踩坑5：忘记设置容器 `overflow: auto` 和固定高度**
+❌ 错误：容器没有 `height` 和 `overflow: auto`，内部撑起的 `totalHeight` div 直接展开，没有滚动行为，虚拟化失效。
+✓ 正确：外层容器必须设置 `height: viewportHeight; overflow: auto; position: relative`，让滚动在容器内发生。
+原因：虚拟列表的滚动必须约束在固定高度的容器内，scrollTop 才有意义。
+
+---
+
+## 扩展性追问
+
+**Q: 如何支持水平虚拟化（Horizontal Virtualization）？**
+思路：将 `scrollTop`/`itemHeight`/`viewportHeight` 替换为 `scrollLeft`/`itemWidth`/`viewportWidth`，其余算法完全对称；渲染层将 `translateY` 改为 `translateX`，flex-direction 改为 row。同时维护两个维度的 scrollTop 和 scrollLeft 可实现 2D 网格虚拟化（Grid）。
+
+**Q: 如何实现 2D 网格虚拟化（Virtual Grid）？**
+思路：垂直方向计算 `rowStart/rowEnd`，水平方向计算 `colStart/colEnd`，只渲染矩形可见区内的 `(rowEnd-rowStart) × (colEnd-colStart)` 个单元格；每个单元格用 `position: absolute; transform: translate(colOffset, rowOffset)` 定位。关键难点是固定首行/首列（不随内容虚拟化滚动）的实现。
+
+**Q: 如何实现 scrollToIndex 并带有平滑动画？**
+思路：固定高度：目标 `scrollTop = index * itemHeight`，调用 `containerEl.scrollTo({ top, behavior: 'smooth' })`；动态高度：先确保 index 对应的 item 已测量（可能需要预渲染），再根据累积高度计算 scrollTop。对于跨越大量未测量节点的跳转，需要分步渲染：先跳到估算位置，测量后微调，避免大范围布局抖动。
 
 ---
 

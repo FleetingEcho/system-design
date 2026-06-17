@@ -538,6 +538,35 @@ const rows = await api.parseCSV(csvText);
 **Q: useMemo 和 useCallback 什么时候用，什么时候不用？**
 A: 用的前提：（1）memo 包裹的子组件的 props、或（2）useEffect/useMemo 的依赖数组里用到了这个函数/值。其他情况不要用，因为 memo 本身有对比开销。React Compiler 会自动处理大多数情况。
 
+## 常见踩坑
+
+**踩坑1：到处加 useMemo/useCallback 反而更慢**
+❌ 错误：为每个函数和计算加 `useMemo`/`useCallback`，以为"越多越好"，实际上 deps 比较本身有开销，简单计算用 memo 比不用还慢。
+✓ 正确：先用 React DevTools Profiler 测量找到真正的性能热点，只对耗时超过 1ms 的计算或稳定引用有价值的回调使用 memo。
+原因：`useMemo` 不是零成本，每次渲染都要做 deps 浅比较，计算本身简单时 memo 的开销大于收益。
+
+**踩坑2：图片未指定 width/height 导致 CLS 劣化**
+❌ 错误：`<img src="photo.jpg" />` 不设置尺寸，图片加载前浏览器不知道它的大小，加载后页面"跳动"，CLS 升高。
+✓ 正确：始终设置 `width` 和 `height` 属性（或用 CSS aspect-ratio），浏览器可以提前预留空间。
+原因：CLS（累计布局偏移）是 Core Web Vitals 指标，图片没有尺寸是导致 CLS 的最常见原因。
+
+**踩坑3：代码分割粒度过细导致过多网络请求**
+❌ 错误：每个路由都 lazy import，产生 50 个 chunk，用户切换路由时频繁串行加载，网络瀑布流反而更慢。
+✓ 正确：按"用户访问频率"和"体积"综合决定 chunk 粒度，低频访问的大页面才值得分割，高频页面预加载。
+原因：HTTP/2 并行请求缓解了多请求问题，但过多小 chunk 的协商开销（TCP 握手、缓存查询）仍然有代价。
+
+**踩坑4：在 scroll/resize 事件中直接调用 getBoundingClientRect**
+❌ 错误：`window.addEventListener('scroll', () => el.getBoundingClientRect())`，每次滚动强制同步 Layout 回流，帧率下降到个位数。
+✓ 正确：用 IntersectionObserver 代替手动计算位置，或将 getBoundingClientRect 结果缓存，仅在 ResizeObserver 触发时更新。
+原因：`getBoundingClientRect` 强制浏览器同步完成 Layout 计算，高频调用是"强制同步布局"性能陷阱。
+
+**踩坑5：Long Task 全部归因于 JS，忽略第三方脚本**
+❌ 错误：看到 Long Task 就优化自己的代码，但其实是第三方广告脚本或客服 widget 造成的主线程阻塞。
+✓ 正确：在 Chrome DevTools Performance 面板中查看 Long Task 的调用栈，确认来源；对第三方脚本用 `<script async>` 或 Web Worker 隔离。
+原因：第三方脚本在主线程执行且不可控，是 TBT/INP 劣化的高频但被忽视的来源。
+
+---
+
 **Q: 虚拟滚动在 SSR 里怎么处理？**
 A: 服务端渲染时没有视口高度，无法计算可见区域，只能渲染第一屏的几条数据（用 initialRect 指定预估尺寸）。TanStack Virtual 支持 SSR 配置，但虚拟滚动本质上是客户端技术，SSR 只做首屏数量的"近似"渲染。
 

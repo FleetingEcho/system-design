@@ -557,6 +557,30 @@ A: Design Token 是平台无关的设计决策（JSON/TypeScript 定义）；CSS
 **Q: 组件库升级 breaking change 怎么办？**
 A: 语义化版本（major 版本升级）+ 迁移文档 + Codemod（自动代码迁移脚本）。大型组织通常维护两个大版本并行一段时间，给消费者迁移窗口。
 
+## 常见踩坑
+
+**踩坑1：组件 Props 设计过于宽泛（任意传 className/style）**
+❌ 错误：每个组件都接受 `className` 和 `style` prop，消费者随意改样式，设计一致性彻底失控。
+✓ 正确：提供有限的 `variant`、`size`、`tone` 等语义化 prop，不暴露底层样式控制，用 Design Token 约束变化范围。
+原因：Design System 的核心价值是"有约束的一致性"，过度灵活等于没有约束。
+
+**踩坑2：Breaking Change 未做版本管理和 Migration Guide**
+❌ 错误：直接修改 Button 组件的 prop 名（`variant` → `appearance`），所有消费方编译报错，每次更新都是"破坏性发布"。
+✓ 正确：遵循 semver，breaking change 升 major 版本，同时提供 codemod 脚本自动迁移，保持至少一个大版本的兼容期。
+原因：Design System 是内部基础设施，消费方团队无法频繁人工迁移，自动化工具是大规模采纳的关键。
+
+**踩坑3：组件库未做 Tree Shaking，全量引入体积过大**
+❌ 错误：`import { Button } from '@ds/components'` 实际引入了整个组件库 bundle（2MB），即使只用了一个组件。
+✓ 正确：配置 `package.json` 的 `exports` 字段支持 ESM，开启 `sideEffects: false`，消费方 bundler 可以 tree shake 掉未使用的组件。
+原因：组件库不支持 tree shaking 会严重膨胀消费方的 bundle 体积，影响首屏性能。
+
+**踩坑4：Storybook 与生产组件不同步**
+❌ 错误：组件逻辑改了但 Storybook story 没更新，文档展示的是旧行为，消费方按文档写代码却不能运行。
+✓ 正确：CI 中运行 `storybook build` 并与上个版本做视觉回归测试（Chromatic），story 变化需要审批通过。
+原因：文档即合约，文档与实现不一致比没有文档更危险，会建立错误的信任。
+
+---
+
 **Q: 无头组件（Headless）和普通封装组件怎么选？**
 A: 设计系统强定制需求用无头（Radix / Headless UI），消费者自己控制样式；追求开箱即用用带样式的组件（shadcn/ui / Ant Design）。大公司通常内部用无头层 + 自己的样式层。
 

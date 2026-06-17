@@ -131,6 +131,59 @@ Route（当前路由快照）
 
 ---
 
+## 白板版（面试15分钟）
+
+```typescript
+// 面试写这个版本，生产实现见下方完整版
+interface RouteRecord { path: string; component: unknown; }
+
+class Router {
+  private routes: RouteRecord[];
+  private listeners: Function[] = [];
+  current = '/';
+
+  constructor(routes: RouteRecord[]) {
+    this.routes = routes;
+    window.addEventListener('popstate', () => this.render(location.pathname));
+  }
+
+  push(path: string) {
+    history.pushState(null, '', path);
+    this.render(path);
+  }
+
+  // 省略：导航守卫 / hash 模式 / query 解析
+  private match(path: string) {
+    for (const r of this.routes) {
+      const keys: string[] = [];
+      const regex = new RegExp(
+        '^' + r.path.replace(/:([^/]+)/g, (_, k) => { keys.push(k); return '([^/]+)'; }) + '$'
+      );
+      const m = path.match(regex);
+      if (m) {
+        const params: Record<string, string> = {};
+        keys.forEach((k, i) => params[k] = m[i + 1]);
+        return { record: r, params };
+      }
+    }
+    return null;
+  }
+
+  private render(path: string) {
+    this.current = path;
+    const matched = this.match(path);
+    this.listeners.forEach(fn => fn(matched));
+  }
+
+  subscribe(fn: Function) {
+    this.listeners.push(fn);
+    return () => { this.listeners = this.listeners.filter(f => f !== fn); };
+  }
+}
+```
+
+---
+
 ## 路由匹配
 
 ```typescript
@@ -412,6 +465,48 @@ function Link({ to, children }: { to: string; children: React.ReactNode }) {
   return <a href={to} onClick={handleClick}>{children}</a>;
 }
 ```
+
+---
+
+## 常见踩坑
+
+**踩坑1：忘记拦截 `<a>` 标签的默认跳转**
+❌ 错误：点击 `<a href="/user/1">` 触发完整页面刷新，SPA 的 JS 状态丢失。
+✓ 正确：在 Link 组件中 `e.preventDefault()` 后调用 `router.push(to)`，或全局监听 `click` 事件拦截内部链接。
+原因：`history.pushState` 只改 URL，不发起网络请求；而 `<a>` 默认行为是向服务器发起 GET 请求。
+
+**踩坑2：history 模式刷新页面 404**
+❌ 错误：直接访问 `/user/1` 时服务器返回 404，因为服务器上没有该路径对应的文件。
+✓ 正确：服务端配置 fallback：所有路径都返回 `index.html`（Nginx: `try_files $uri /index.html`）。
+原因：SPA 的路由由前端 JS 处理，服务端只需返回入口 HTML 即可。
+
+**踩坑3：popstate 事件不监听导致前进/后退失效**
+❌ 错误：只处理 `push`，不监听 `popstate`，用户点击浏览器后退按钮时 UI 不更新（URL 变了但视图没变）。
+✓ 正确：构造函数中 `window.addEventListener('popstate', () => this._handleLocationChange())`。
+原因：`history.back()` / `history.forward()` 触发 `popstate`，而非自定义的 push 逻辑。
+
+**踩坑4：路由匹配顺序问题**
+❌ 错误：将 `*`（通配符/404）路由放在前面，导致所有路径都匹配到 404 页面。
+✓ 正确：路由按特异性从高到低排列（精确 > 动态 > 通配符），将 `*` 放在最后。
+原因：路由匹配是顺序查找，返回第一个匹配项，顺序直接决定结果。
+
+**踩坑5：导航守卫异步时未处理并发导航**
+❌ 错误：守卫 A 正在异步等待时，用户再次导航触发守卫 B，两个导航同时进行，后完成的覆盖先完成的。
+✓ 正确：开始新导航时取消上一个进行中的导航（设置 cancelled flag 或 AbortController），守卫链完成后先检查是否已被取消。
+原因：异步守卫（如权限校验 API 请求）期间用户可能再次触发导航，需要处理竞态。
+
+---
+
+## 扩展性追问
+
+**Q: 如何支持嵌套路由（children）？**
+思路：RouteRecord 增加 `children?: RouteRecord[]` 字段；matchRoute 改为递归——先匹配父路由，命中后再用剩余路径匹配 children，返回 `matched` 数组（从根到叶的完整链）。渲染层用 `<RouterOutlet>` 组件，根据 `matched` 数组中的当前层级渲染对应组件。
+
+**Q: 如何实现 beforeEach 导航守卫？**
+思路：Router 维护 `guards: NavigationGuard[]` 数组；`push` 时串行 await 每个守卫，守卫调用 `next()` 继续、`next(false)` 中止、`next('/login')` 重定向。用 `for...of` + `await new Promise(resolve => guard(to, from, resolve))` 实现串行，避免 Promise.all 并发。
+
+**Q: 如何支持路由级别的懒加载（lazy routes）？**
+思路：`component` 字段允许 `() => import('./Page')` 形式的函数；首次渲染该路由时调用函数动态 import，加载中显示 Suspense fallback，加载完成后缓存到 `componentCache: Map<RouteRecord, Component>`，下次导航到同一路由直接用缓存，不重复加载。
 
 ---
 

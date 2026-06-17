@@ -73,6 +73,59 @@ classDiagram
 
 ---
 
+## 白板版（面试15分钟）
+
+```typescript
+// 面试写这个版本，生产实现见下方完整版
+import { useRef, useReducer, useEffect } from 'react';
+
+type Validator = (value: unknown) => true | string;
+
+function useForm() {
+  const fieldsRef = useRef<Map<string, { rules: Validator[]; el: HTMLInputElement | null }>>(new Map());
+  const errorsRef = useRef<Record<string, string>>({});
+  const [, forceUpdate] = useReducer(x => x + 1, 0);
+  // 省略：async validate / touched / dirty / mode / reset
+
+  function register(name: string, ...rules: Validator[]) {
+    fieldsRef.current.set(name, { rules, el: null });
+    return {
+      name,
+      ref: (el: HTMLInputElement | null) => {
+        const field = fieldsRef.current.get(name);
+        if (field) field.el = el;
+      },
+    };
+  }
+
+  function validate(name: string): boolean {
+    const field = fieldsRef.current.get(name);
+    if (!field || !field.el) return true;
+    const value = field.el.value;
+    for (const rule of field.rules) {
+      const result = rule(value);
+      if (result !== true) { errorsRef.current[name] = result; forceUpdate(); return false; }
+    }
+    delete errorsRef.current[name]; forceUpdate(); return true;
+  }
+
+  function handleSubmit(onValid: (data: Record<string, string>) => void) {
+    return (e: React.FormEvent) => {
+      e.preventDefault();
+      const allValid = [...fieldsRef.current.keys()].every(name => validate(name));
+      if (!allValid) return;
+      const data: Record<string, string> = {};
+      fieldsRef.current.forEach((field, name) => { if (field.el) data[name] = field.el.value; });
+      onValid(data);
+    };
+  }
+
+  return { register, handleSubmit, errors: errorsRef.current };
+}
+```
+
+---
+
 ## 需求分析
 
 ```
@@ -565,6 +618,48 @@ function RegisterPage() {
   );
 }
 ```
+
+---
+
+## 常见踩坑
+
+**踩坑1：用 `useState` 管理每个字段值导致每次按键整表重渲染**
+❌ 错误：`const [value, setValue] = useState('')`，每次输入触发 setState，整个表单组件树重渲染，100 个字段的大表单严重卡顿。
+✓ 正确：非受控组件（ref 直接读 DOM 值）+ 订阅机制（只在 error/formState 变化时才触发必要的重渲染）。
+原因：React Hook Form 性能领先的核心就是"不把字段 value 放 state"，按键时不触发 React 渲染。
+
+**踩坑2：验证规则按 fail-fast 原则实现时出错**
+❌ 错误：`await Promise.all(rules.map(r => r(value)))` 并发执行所有规则，多个错误同时显示，且跑了不必要的异步请求（required 都没过还去发 API 验证唯一性）。
+✓ 正确：串行执行（`for...of` + `await`），遇到第一个错误就 break，之后的规则不执行。
+原因：规则有优先级，required 最先校验，昂贵的异步规则放最后，fail-fast 减少不必要请求。
+
+**踩坑3：联动验证（confirm password）只单向触发**
+❌ 错误：修改 password 时只验证 password 字段，confirmPassword 未重新验证，虽然已不匹配但不显示错误，直到 confirmPassword 再次 blur。
+✓ 正确：字段声明 `deps: ['password']`，password 变化时自动触发 confirmPassword 的验证；或 handleSubmit 时全量验证所有字段。
+原因：表单字段间有依赖关系，单字段验证必须考虑触发关联字段重验证。
+
+**踩坑4：异步验证（检查邮箱唯一性）没有防抖和竞态处理**
+❌ 错误：每次 onChange 都立即发 API 请求验证邮箱，每个按键触发一次请求，且早发出的请求可能覆盖晚发出的结果。
+✓ 正确：对异步 validate 函数加 300ms debounce；用 AbortController 取消上一次未完成的验证请求，只接受最新结果。
+原因：异步验证和搜索框一样有竞态问题，必须防抖 + 取消旧请求。
+
+**踩坑5：handleSubmit 未在提交前标记所有字段为 touched**
+❌ 错误：mode=onBlur 时，从未 blur 的字段（用户跳过直接点提交）不显示错误，即使验证失败用户也不知道哪里有问题。
+✓ 正确：handleSubmit 开始时遍历所有字段设置 `touched = true`，然后全量验证，所有错误一并展示。
+原因：提交时必须暴露所有字段的验证错误，而不只是已交互字段的错误。
+
+---
+
+## 扩展性追问
+
+**Q: 如何支持数组字段（useFieldArray，动态增减行）？**
+思路：字段名支持 `items[0].name`、`items[1].name` 格式；`useFieldArray(name)` 返回 `{ fields, append, remove, move }`——内部维护 `fieldIds[]` 数组，append 时 push 新 id，remove 时 filter；渲染时 `fields.map(field => register(\`items.${field.id}.name\`, ...))`；getValues 时递归解析点号路径聚合成嵌套对象。
+
+**Q: 如何支持条件字段（watch 某字段值，动态 show/hide 其他字段）？**
+思路：`watch(name)` 订阅指定字段变化——在 FormEngine 中为 watch 字段添加 onChange 回调，变化时通知订阅者重渲染；组件中 `const type = watch('type')` 得到实时值，用条件渲染控制 `{type === 'company' && <input {...register('companyName')} />}`；字段隐藏时 `unregister('companyName')` 清理其值和错误（避免隐藏字段的验证错误阻止提交）。
+
+**Q: 如何实现多步表单向导（Form Wizard）？**
+思路：每个步骤是独立的字段集合，FormEngine 实例跨步骤共享；`nextStep` 时只验证当前步骤的字段集（`trigger(['step1Field1', 'step1Field2'])`），全部通过才允许进入下一步；最后一步 handleSubmit 时用 `getValues()` 收集所有步骤的数据提交；步骤切换时不销毁已填字段的数据（不 unregister），允许用户返回修改。
 
 ---
 

@@ -430,6 +430,30 @@ const client = new ApolloClient({
 **Q: BFF 会不会变成新的巨石？**
 A: 会，如果所有客户端共用一个 BFF。解法：按客户端拆分（Web BFF / Mobile BFF），或用 GraphQL 的 schema stitching / federation 将 BFF 本身微服务化（每个领域一个 subgraph）。
 
+## 常见踩坑
+
+**踩坑1：BFF 成为"业务逻辑的垃圾桶"**
+❌ 错误：前端开发者把所有数据处理逻辑、权限校验、业务规则都写进 BFF，BFF 越来越臃肿，变成另一个难以维护的后端服务。
+✓ 正确：BFF 只做数据聚合、格式转换、协议适配（REST→GraphQL）和前端缓存，核心业务逻辑必须在领域服务中。
+原因：BFF 属于前端团队，应保持"薄层"，厚重业务逻辑放进去会导致职责边界模糊和团队摩擦。
+
+**踩坑2：GraphQL N+1 问题未用 DataLoader 解决**
+❌ 错误：`posts` resolver 返回 100 条帖子，每条帖子的 `author` resolver 单独查一次数据库，产生 101 次查询。
+✓ 正确：用 DataLoader 将同一批次内的 author ID 合并为一次 `SELECT * FROM users WHERE id IN (...)` 批量查询。
+原因：GraphQL resolver 是按字段独立执行的，没有 DataLoader 时列表查询的数据库压力是 O(N)。
+
+**踩坑3：BFF 未对下游服务设置超时**
+❌ 错误：下游某个微服务响应慢，BFF 的 `Promise.all` 等待超时，最终整个 BFF 响应超时，前端白屏。
+✓ 正确：每个下游调用设置独立超时（如 1000ms），超时后返回降级数据或忽略该字段，不阻塞其他数据的返回。
+原因：下游服务不可靠，BFF 必须有故障隔离，单个服务超时不应影响整体响应。
+
+**踩坑4：BFF 层做了权限校验但遗漏了字段级别的过滤**
+❌ 错误：接口层校验了用户是否登录，但 GraphQL resolver 返回了包含敏感字段（`salary`、`phone`）的完整对象，普通用户也能读取管理员字段。
+✓ 正确：resolver 层根据 `context.user.role` 过滤敏感字段，或用 `@auth` 指令在 schema 层声明字段级权限。
+原因：BFF 的字段聚合灵活性也带来了过度暴露数据的风险，必须做字段级鉴权。
+
+---
+
 **Q: BFF 的性能瓶颈在哪里？**
 A: 主要是后端服务调用的聚合延迟。缓解：并行调用（`Promise.all`）、DataLoader 批量、响应缓存（Redis）、连接复用（gRPC 长连接 vs HTTP/2）。
 

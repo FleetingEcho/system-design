@@ -91,6 +91,70 @@ fulfilled / rejected 是终态，不可再转换。
 
 ---
 
+## 白板版（面试15分钟）
+
+```typescript
+// 面试写这个版本，生产实现见下方完整版
+type State = 'pending' | 'fulfilled' | 'rejected';
+
+class MyPromise {
+  private state: State = 'pending';
+  private value: unknown;
+  private callbacks: { onFulfilled: Function; onRejected: Function }[] = [];
+
+  constructor(executor: (resolve: Function, reject: Function) => void) {
+    const resolve = (value: unknown) => {
+      if (this.state !== 'pending') return;
+      this.state = 'fulfilled';
+      this.value = value;
+      this.callbacks.forEach(cb => queueMicrotask(() => cb.onFulfilled(value)));
+    };
+    const reject = (reason: unknown) => {
+      if (this.state !== 'pending') return;
+      this.state = 'rejected';
+      this.value = reason;
+      this.callbacks.forEach(cb => queueMicrotask(() => cb.onRejected(reason)));
+    };
+    // 省略：循环引用检测 / resolve(thenable) 处理
+    try { executor(resolve, reject); } catch (e) { reject(e); }
+  }
+
+  then(onFulfilled?: Function, onRejected?: Function): MyPromise {
+    const _onFulfilled = typeof onFulfilled === 'function' ? onFulfilled : (v: unknown) => v;
+    const _onRejected = typeof onRejected === 'function' ? onRejected : (r: unknown) => { throw r; };
+
+    return new MyPromise((resolve, reject) => {
+      const handle = (fn: Function, val: unknown) => {
+        queueMicrotask(() => {
+          try { resolve(fn(val)); } catch (e) { reject(e); }
+        });
+      };
+      if (this.state === 'fulfilled') handle(_onFulfilled, this.value);
+      else if (this.state === 'rejected') handle(_onRejected, this.value);
+      else this.callbacks.push({ onFulfilled: (v: unknown) => handle(_onFulfilled, v), onRejected: (r: unknown) => handle(_onRejected, r) });
+    });
+  }
+
+  catch(onRejected: Function) { return this.then(undefined, onRejected); }
+
+  static resolve(v: unknown) { return new MyPromise(r => r(v)); }
+  static reject(r: unknown) { return new MyPromise((_, j) => j(r)); }
+
+  static all(promises: MyPromise[]) {
+    return new MyPromise((resolve, reject) => {
+      const results: unknown[] = [];
+      let count = 0;
+      promises.forEach((p, i) => p.then((v: unknown) => {
+        results[i] = v;
+        if (++count === promises.length) resolve(results);
+      }, reject));
+    });
+  }
+}
+```
+
+---
+
 ## 核心实现
 
 ```typescript
@@ -365,6 +429,48 @@ MyPromise.resolve(1)
   .finally(() => console.log('cleanup'))  // cleanup（无论成功失败）
   .then(v => console.log(v));             // 1（finally 不改变值）
 ```
+
+---
+
+## 常见踩坑
+
+**踩坑1：then 回调同步执行**
+❌ 错误：在 state 已是 fulfilled 时直接同步调用 onFulfilled，导致行为与规范不一致（同步 resolve 和异步 resolve 的 then 执行时机不同）。
+✓ 正确：无论 state 是否已落定，onFulfilled/onRejected 都必须用 `queueMicrotask` 包裹，确保异步执行。
+原因：Promises/A+ 规范要求 then 回调必须在当前执行栈清空后才调用，保证行为一致性。
+
+**踩坑2：resolve 接受 thenable 时未递归展开**
+❌ 错误：`resolve(anotherPromise)` 直接将 Promise 对象作为 fulfilled value 存储，`then` 拿到的是 Promise 而非值。
+✓ 正确：在 resolve 内部检查 value 是否有 `.then` 方法，有则调用 `value.then(resolve, reject)` 等待其落定。
+原因：`Promise.resolve(promise)` 应该"等待"而不是"包装"，这是链式调用能传递 Promise 的基础。
+
+**踩坑3：循环引用未检测**
+❌ 错误：`const p = promise.then(() => p)` 导致无限递归，最终栈溢出或永远 pending。
+✓ 正确：在 resolvePromise 中检查 `promise2 === x`，相等时 reject 一个 TypeError。
+原因：规范 2.3.1 明确要求检测循环引用，否则会造成死循环。
+
+**踩坑4：Promise.all 用索引收集结果而非 push**
+❌ 错误：用 `results.push(value)` 收集 all 的结果，并发完成顺序不定，最终数组顺序与输入不一致。
+✓ 正确：用 `results[i] = value` 按原始索引存储，保证输出顺序与输入一致。
+原因：Promise.all 的语义要求结果数组与输入数组顺序对应，并发 resolve 顺序是不确定的。
+
+**踩坑5：catch 内的错误被吞掉**
+❌ 错误：catch 回调本身抛出异常时，没有传递给下游，导致错误静默消失。
+✓ 正确：`catch(fn)` 本质是 `then(null, fn)`，fn 内抛出的错误会 reject 返回的新 Promise，自然传递给下游。
+原因：每个 then/catch 返回的是新 Promise，错误通过链传播，不会中断链但也不会消失。
+
+---
+
+## 扩展性追问
+
+**Q: 如何实现可取消的 Promise（CancellablePromise）？**
+思路：用 AbortController 包装——创建时传入 `signal`，在 executor 内监听 `signal.abort` 事件，触发时调用 reject(new DOMException('Aborted'))。调用方持有 controller，调用 `controller.abort()` 即可取消。注意 Promise 本身不可取消，取消的是其副作用（如 fetch）。
+
+**Q: 如何实现 Promise.timeout(ms) 包装器？**
+思路：返回 `Promise.race([originalPromise, new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), ms))])`。注意 race 只解决第一个落定的，超时后原始 Promise 继续执行（无法真正取消），需要配合 AbortController 才能终止副作用。
+
+**Q: 如何实现带指数退避的 retry(fn, times, delay) 包装器？**
+思路：递归实现——`fn().catch(err => times > 0 ? sleep(delay).then(() => retry(fn, times - 1, delay * 2)) : Promise.reject(err))`。`sleep(ms)` 用 `new Promise(r => setTimeout(r, ms))` 实现。面试时要说明退避上限（防止 delay 无限增长）和抖动（jitter）防止雷同重试时间段。
 
 ---
 

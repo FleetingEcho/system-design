@@ -453,6 +453,35 @@ P2（工作时间处理）：
 **Q: RUM 数据量很大，如何控制成本？**
 A: 三层控制：①客户端采样（10% 用户上报 → 数据有代表性，量减 90%）；②服务端按 URL 聚合（不存每条原始记录，只存分桶数据）；③数据分级存储（热数据 ClickHouse，90 天后归档 S3）。
 
+## 常见踩坑
+
+**踩坑1：监控 SDK 阻塞首屏渲染**
+❌ 错误：在 `<head>` 中同步加载监控 SDK（`<script src="monitor.js">`），SDK 下载执行阻塞 HTML 解析，LCP 劣化。
+✓ 正确：监控 SDK 用 `<script async>` 或 `requestIdleCallback` 异步加载，不在关键渲染路径上执行任何逻辑。
+原因：监控是辅助功能，不能为了观测性能而损害性能本身，SDK 体积应 < 5KB gzip。
+
+**踩坑2：Error 监控未捕获异步错误和 Promise rejection**
+❌ 错误：只监听 `window.onerror`，捕获不到 `Promise.reject()`、`async/await` 内部抛出的未处理错误。
+✓ 正确：同时监听 `window.addEventListener('unhandledrejection', ...)` 捕获未处理的 Promise rejection。
+原因：现代前端大量使用异步代码，`unhandledrejection` 是捕获异步错误的关键事件。
+
+**踩坑3：上报请求影响用户体验和统计准确性**
+❌ 错误：页面卸载时用同步 XHR 上报数据（`XMLHttpRequest` with `async: false`），阻塞页面关闭，或用普通 fetch 导致数据丢失（页面关闭时 fetch 被中断）。
+✓ 正确：用 `navigator.sendBeacon(url, data)` 上报，它在页面卸载时也能可靠发送，不阻塞关闭。
+原因：`sendBeacon` 专为卸载上报设计，浏览器保证数据发出后再关闭页面。
+
+**踩坑4：LCP 测量未排除 LCP 元素在折叠线以下的情况**
+❌ 错误：将页面底部一张大图的加载时间误记为 LCP，这张图从未进入视口，却拉高了 LCP 数据。
+✓ 正确：LCP 只统计首屏（viewport）内最大的内容元素，折叠线以下的元素不应计入 LCP。
+原因：LCP 的定义是"视口内最大内容元素的渲染时间"，与不可见元素无关。
+
+**踩坑5：未按设备类型和网络条件分层分析数据**
+❌ 错误：将所有用户的 LCP 数据混合平均，P75 LCP = 2.0s"达标"，但实际上移动端 3G 用户 P75 = 5.0s，完全不达标。
+✓ 正确：上报时携带 `device`（mobile/desktop）和 `connection.effectiveType`（4g/3g/2g），分层分析。
+原因：桌面+高速网络拉低平均值，掩盖了特定群体的真实体验问题。
+
+---
+
 **Q: 采样会不会错过 P99 用户（最慢的那些）？**
 A: 有影响，但可接受。对于异常监控，可以用"错误采样率 100%"（所有 JS 错误都上报）+ "正常采样率 10%"的分层采样策略。P99 估算误差在统计上是可接受的。
 

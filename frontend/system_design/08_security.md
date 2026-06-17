@@ -417,6 +417,35 @@ const securityHeaders = {
 **Q: SPA 比传统多页应用更容易受 XSS 攻击吗？**
 A: 是的，风险更高。SPA 大量操作 DOM（innerHTML、eval 等），而且客户端路由让反射型 XSS 更容易触发。但现代框架（React/Vue）默认自动编码，只要避免 dangerouslySetInnerHTML 就能防御大多数 XSS。
 
+## 常见踩坑
+
+**踩坑1：用 innerHTML 插入用户内容导致 XSS**
+❌ 错误：`element.innerHTML = userComment`，用户输入 `<script>alert(document.cookie)</script>` 直接执行，窃取 Cookie。
+✓ 正确：用 `textContent` 替代 `innerHTML`，或使用 DOMPurify 对富文本内容做白名单清洗后再插入。
+原因：`innerHTML` 会解析并执行 HTML 中的脚本，任何包含用户输入的地方都必须先做转义或清洗。
+
+**踩坑2：JWT 存储在 localStorage 中可被 XSS 窃取**
+❌ 错误：`localStorage.setItem('token', jwt)`，XSS 攻击者执行 `localStorage.getItem('token')` 即可拿到 JWT 冒充用户。
+✓ 正确：JWT 存在 `HttpOnly; Secure; SameSite=Strict` 的 Cookie 中，JS 无法读取，XSS 无法窃取。
+原因：HttpOnly Cookie 对 JS 完全不可见，`document.cookie` 也读不到，是存 Token 最安全的方式。
+
+**踩坑3：CSRF 防护只靠 Referer 校验**
+❌ 错误：服务端检查 `Referer` 头来防 CSRF，但 Referer 可被用户浏览器设置隐藏，某些情况下不发送，导致合法请求被拒。
+✓ 正确：用双重 Cookie（Double Submit Cookie）或 CSRF Token：服务端生成随机 token 存 Cookie，请求时同时在 Header 或 Body 中携带，服务端校验两者一致性。
+原因：Cookie 的 SameSite=Strict/Lax 是现代防 CSRF 的主要手段，Referer 只能作为辅助。
+
+**踩坑4：CSP 配置了 `unsafe-inline` 使策略形同虚设**
+❌ 错误：为了兼容内联脚本，CSP 头中加入 `script-src 'unsafe-inline'`，XSS 注入的内联 `<script>` 仍然能执行。
+✓ 正确：用 nonce（`'nonce-xxx'`）或 hash 允许特定内联脚本，不用 `unsafe-inline`；所有脚本尽量外链。
+原因：`unsafe-inline` 完全放开内联脚本执行权限，CSP 的 XSS 防护核心价值就此丧失。
+
+**踩坑5：open redirect 漏洞导致钓鱼攻击**
+❌ 错误：`/redirect?url=https://evil.com`，直接将 url 参数作为跳转目标，攻击者发钓鱼链接让用户误信是可信域名。
+✓ 正确：白名单校验跳转目标（只允许内部域名），或对外部 URL 展示中间确认页，不直接跳转。
+原因：Open Redirect 可结合 OAuth 流程劫持授权码，或作为钓鱼链接的信任背书，危害极大。
+
+---
+
 **Q: JWT 存 localStorage 有什么问题，怎么解决？**
 A: XSS 可以读取 localStorage，窃取 Token 后冒充用户。解决：用 HttpOnly Cookie 存 Token（JS 无法读取）；或存内存（安全但页面刷新丢失，需要 Refresh Token 机制）。
 

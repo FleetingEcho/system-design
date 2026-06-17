@@ -591,6 +591,30 @@ A: Web Worker 是通用后台线程，用于 CPU 密集型计算，与页面生�
 **Q: Cache API 和 HTTP 缓存（Cache-Control）如何配合？**
 A: 两者独立工作。HTTP 缓存由浏览器控制（根据响应头）；Cache API 由 Service Worker 代码控制。Service Worker 在 HTTP 缓存层之前介入，可以返回 Cache API 中的数据，完全绕过 HTTP 缓存。最佳实践：SW 管理应用级缓存逻辑，HTTP 缓存作为次级缓存。
 
+## 常见踩坑
+
+**踩坑1：Service Worker 更新后用户看到的仍是旧版本**
+❌ 错误：部署了新版 SW 后，已打开页面的用户不刷新就看不到更新，因为旧 SW 仍然在控制页面。
+✓ 正确：在新 SW 的 `activate` 事件中调用 `clients.claim()` 立即接管，并用 `skipWaiting()` 跳过等待期；同时在页面中监听 `controllerchange` 事件提示用户刷新。
+原因：SW 生命周期设计为"等待所有标签页关闭后才激活新版本"，不处理则更新对用户透明延迟。
+
+**踩坑2：缓存策略选择不当导致用户看到过期数据**
+❌ 错误：对 API 请求使用 Cache-First 策略（离线场景下优先返回缓存），导致用户看到几天前的旧数据，以为是当前价格/库存。
+✓ 正确：数据类接口用 Network-First（有网时取最新，断网时降级缓存）或 Stale-While-Revalidate（立即返回缓存，后台更新）。
+原因：Cache-First 适合静态资源（字体/图片），不适合频繁变化的业务数据。
+
+**踩坑3：预缓存资源列表未做版本控制**
+❌ 错误：`precacheAndRoute(['/app.js', '/style.css'])`，文件内容变了但 URL 不变，SW 不知道需要更新缓存，用户持续拿到旧文件。
+✓ 正确：用 Workbox generateSW 或 injectManifest，构建时自动生成带内容 hash 的 precache manifest（`/app.abc123.js`）。
+原因：SW 通过 URL 识别缓存条目，URL 不变则认为缓存有效，必须用内容 hash 版本化 URL。
+
+**踩坑4：Background Sync 失败后无告知机制**
+❌ 错误：离线时用 Background Sync 队列表单提交，但网络恢复后实际同步失败（服务端 500），用户以为已提交实际数据丢失。
+✓ 正确：Background Sync 配合服务端响应处理：同步失败时存储失败记录，网络恢复后在 UI 中展示"有 N 条数据同步失败，请重试"。
+原因：离线队列的同步结果对用户不透明，必须有明确的成功/失败反馈机制。
+
+---
+
 **Q: IndexedDB 数据会被浏览器清除吗？**
 A: 可能。浏览器在存储空间不足时会驱逐数据（Eviction）。可以用 `navigator.storage.persist()` 申请持久化存储（需要用户授权），申请后不会被自动清除。用 `navigator.storage.estimate()` 查询剩余配额。
 

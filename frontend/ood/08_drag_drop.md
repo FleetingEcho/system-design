@@ -101,6 +101,49 @@ classDiagram
 
 ---
 
+## 白板版（面试15分钟）
+
+```typescript
+// 面试写这个版本，生产实现见下方完整版
+import { useReducer, useCallback } from 'react';
+
+interface Point { x: number; y: number; }
+type DragState = { status: 'idle' } | { status: 'dragging'; activeId: string; delta: Point; origin: Point; overId: string | null; };
+type DragAction =
+  | { type: 'START'; id: string; origin: Point }
+  | { type: 'MOVE'; current: Point; overId: string | null }
+  | { type: 'END' }
+  | { type: 'CANCEL' };
+
+function dragReducer(state: DragState, action: DragAction): DragState {
+  switch (action.type) {
+    case 'START': return { status: 'dragging', activeId: action.id, origin: action.origin, delta: { x: 0, y: 0 }, overId: null };
+    case 'MOVE':
+      if (state.status !== 'dragging') return state;
+      return { ...state, delta: { x: action.current.x - state.origin.x, y: action.current.y - state.origin.y }, overId: action.overId };
+    case 'END': return { status: 'idle' };
+    case 'CANCEL': return { status: 'idle' };
+    default: return state;
+  }
+}
+
+// 省略：碰撞检测 / 阈值判断 / droppable 注册 / keyboard 支持
+function useDragDrop() {
+  const [state, dispatch] = useReducer(dragReducer, { status: 'idle' });
+  const onPointerDown = useCallback((id: string, e: React.PointerEvent) => {
+    dispatch({ type: 'START', id, origin: { x: e.clientX, y: e.clientY } });
+  }, []);
+  const onPointerMove = useCallback((e: React.PointerEvent) => {
+    if (state.status !== 'dragging') return;
+    dispatch({ type: 'MOVE', current: { x: e.clientX, y: e.clientY }, overId: null });
+  }, [state.status]);
+  const onPointerUp = useCallback(() => dispatch({ type: 'END' }), []);
+  return { state, onPointerDown, onPointerMove, onPointerUp };
+}
+```
+
+---
+
 ## 核心接口设计
 
 ```typescript
@@ -482,6 +525,48 @@ function SortableItem({ id, label }: { id: string; label: string }) {
   );
 }
 ```
+
+---
+
+## 常见踩坑
+
+**踩坑1：用 `position:top` 而非 `transform:translateY` 移动拖拽元素**
+❌ 错误：`element.style.top = delta.y + 'px'`，每次 pointermove 触发 Layout 重排，60fps 下严重掉帧。
+✓ 正确：`element.style.transform = \`translate(${delta.x}px, ${delta.y}px)\``，只触发 Composite，完全在 GPU 层。
+原因：`transform` 不影响文档流，浏览器可以在合成层独立处理，不触发其他元素重排。
+
+**踩坑2：未设置 `touch-action: none` 导致移动端滚动冲突**
+❌ 错误：触屏拖拽时浏览器同时触发 scroll，拖拽元素移动和页面滚动同时发生，体验混乱。
+✓ 正确：在可拖拽元素上设置 `touchAction: 'none'`（CSS `touch-action: none`），禁止浏览器处理触摸滚动，交给 JS 控制。
+原因：浏览器默认对触摸事件做滚动处理，必须明确禁用才能接管控制权。
+
+**踩坑3：碰撞检测在每次 pointermove 中全量计算**
+❌ 错误：每次 pointermove 遍历所有 droppable 的 getBoundingClientRect，触发大量 Layout 回流，CPU 飙升。
+✓ 正确：用 ResizeObserver 缓存 droppable 的 rect（只在大小变化时更新），pointermove 中只做纯数学计算；并用 rAF 节流每帧最多更新一次。
+原因：`getBoundingClientRect` 强制同步布局（forced synchronous layout），高频调用是性能杀手。
+
+**踩坑4：拖拽结束后未重置 pointer capture**
+❌ 错误：拖拽结束后 pointer 仍然被捕获，后续点击事件被错误路由到原始元素，UI 行为异常。
+✓ 正确：`pointerup` 时调用 `element.releasePointerCapture(event.pointerId)`，并在 `pointercancel` 中也处理。
+原因：`setPointerCapture` 将后续所有 pointer 事件路由到该元素，结束拖拽必须显式释放。
+
+**踩坑5：忘记处理 Escape 键取消拖拽**
+❌ 错误：只处理 pointerup 提交，没有 Escape 取消逻辑，用户误拖后无法恢复原位，必须手动拖回去。
+✓ 正确：监听 `keydown` 事件，`e.key === 'Escape'` 时 dispatch CANCEL，恢复元素到起始位置，并 abort pointer capture。
+原因：可访问性和用户体验标准都要求拖拽操作支持 Escape 取消。
+
+---
+
+## 扩展性追问
+
+**Q: 如何支持跨容器拖拽（从列表 A 拖到列表 B）？**
+思路：`startDrag` 时记录 `activeContainerId`；droppable 注册时携带 `containerId`；碰撞检测返回 `{ overId, overContainerId }`；`onDragEnd` 回调接收 `{ activeId, overId, activeContainerId, overContainerId }`，外层根据 containerId 是否相同判断同容器移动还是跨容器转移，分别更新两个容器的数据。
+
+**Q: 如何支持键盘可访问性（Space/Arrow 键拖拽）？**
+思路：可拖拽元素绑定 keydown；Space 键切换 `isDraggingWithKeyboard` 状态；Arrow 键在 dragging 状态时移动焦点到相邻 droppable（按 DOM 顺序或坐标最近）；再次 Space 键提交放置（dispatch END），Escape 取消（dispatch CANCEL）。同时更新 `aria-grabbed`、`aria-droppable`、`aria-live` 通知屏幕阅读器。
+
+**Q: 如何支持触摸屏拖拽？**
+思路：用 `pointerdown`/`pointermove`/`pointerup` 而非 `mousedown`/`mousemove`（Pointer Events API 统一了鼠标、触摸、手写笔）；关键是 `setPointerCapture` 确保 pointermove 在任何位置都被捕获；触摸需要额外处理长按激活阈值（避免点击和拖拽冲突），以及 `touch-action: none` 禁止浏览器滚动接管。
 
 ---
 

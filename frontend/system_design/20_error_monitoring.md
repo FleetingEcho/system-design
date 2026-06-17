@@ -481,6 +481,30 @@ A: Error Boundary 基于 React 的渲染机制（`getDerivedStateFromError` 在�
 **Q: Source Map 会不会泄露源码？**
 A: 如果将 `.map` 文件部署到 CDN，任何人都能访问。正确做法：只上传到 Sentry（私有存储），生产 CDN 不部署 `.map`。`next.config.js` 中 `hideSourceMaps: true` 会在构建后自动删除。
 
+## 常见踩坑
+
+**踩坑1：Error Boundary 未上报错误，只做 UI 降级**
+❌ 错误：`componentDidCatch` 只渲染 fallback UI，没有将错误发送到监控平台，生产环境错误对团队完全不可见。
+✓ 正确：`componentDidCatch(error, info)` 中同时调用 `Sentry.captureException(error, { extra: info })`，上报后再渲染 fallback。
+原因：Error Boundary 的两个职责是"保护用户体验"和"通知开发者"，缺一不可。
+
+**踩坑2：Source Map 未上传到监控平台，错误堆栈无法定位**
+❌ 错误：Sentry 收到的错误显示 `at n (app.min.js:1:2456)`，无法定位到具体源码行，排查困难。
+✓ 正确：构建时生成 source map，CI 部署后自动上传到 Sentry（`sentry-cli releases files`），公网不暴露 source map（`hidden-source-map`）。
+原因：没有 source map，压缩后的错误堆栈完全无法阅读，错误监控失去核心价值。
+
+**踩坑3：所有错误都告警导致告警疲劳**
+❌ 错误：任何 JS 错误都触发 PagerDuty/Slack 告警，开发者每天收到几百条告警，开始无视，真正的严重问题被淹没。
+✓ 正确：只对新错误（新发版后首次出现）和错误率急剧上升（环比超过 200%）触发告警；已知问题静音处理。
+原因：告警系统的信噪比决定其有效性，告警越多越无用，精准告警比全量告警更重要。
+
+**踩坑4：未按 Release 版本追踪错误引入时间**
+❌ 错误：发现 Sentry 有 100 个错误，但不知道是哪次发布引入的，排查时间回溯困难。
+✓ 正确：每次部署时设置 `Sentry.setRelease(commitSha)` 和 `dist`，Sentry 自动关联错误与发布版本，并支持查看"该版本新引入了哪些错误"。
+原因：错误和发布版本的关联是快速定位"哪次改动引入了 Bug"的关键，也是回滚决策的依据。
+
+---
+
 **Q: 如何区分"偶发错误"和"系统性问题"？**
 A: 看错误率曲线（绝对数量 vs 占请求百分比）：①单个用户重复报同一错误 → 可能是特定设备/浏览器问题；②错误率突然上升 → 关联最近的部署（用 Sentry 的 release tracking）；③多个地区同时出现 → 可能是 CDN 或 API 问题。Sentry 的 "Issue Grouping"（相同错误聚合）和 "Releases" 功能是关键。
 

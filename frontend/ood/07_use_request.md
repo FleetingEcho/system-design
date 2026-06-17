@@ -96,6 +96,50 @@ classDiagram
 
 ---
 
+## 白板版（面试15分钟）
+
+```typescript
+// 面试写这个版本，生产实现见下方完整版
+import { useState, useEffect, useRef, useCallback } from 'react';
+
+function useRequest<T>(service: () => Promise<T>, options: { manual?: boolean } = {}) {
+  const [data, setData] = useState<T>();
+  const [loading, setLoading] = useState(!options.manual);
+  const [error, setError] = useState<Error>();
+  const abortRef = useRef<AbortController | null>(null);
+  // 省略：重试 / 轮询 / 防抖节流 / refresh / mutate
+
+  const run = useCallback(async () => {
+    // 取消上一次请求（解决竞态条件）
+    abortRef.current?.abort();
+    const ctrl = new AbortController();
+    abortRef.current = ctrl;
+
+    setLoading(true);
+    try {
+      const result = await service();
+      if (!ctrl.signal.aborted) {
+        setData(result);
+        setError(undefined);
+      }
+    } catch (e) {
+      if (!ctrl.signal.aborted) setError(e instanceof Error ? e : new Error(String(e)));
+    } finally {
+      if (!ctrl.signal.aborted) setLoading(false);
+    }
+  }, [service]);
+
+  useEffect(() => {
+    if (!options.manual) run();
+    return () => abortRef.current?.abort(); // 组件卸载时取消请求
+  }, []);
+
+  return { data, loading, error, run };
+}
+```
+
+---
+
 ## 核心实现
 
 ```typescript
@@ -451,6 +495,48 @@ function LikeButton({ postId, initialLiked }: { postId: string; initialLiked: bo
   return <button onClick={handleLike}>{isLiked ? '已赞' : '点赞'}</button>;
 }
 ```
+
+---
+
+## 常见踩坑
+
+**踩坑1：未处理竞态条件**
+❌ 错误：快速连续调用 run()，不取消上一次请求，较早发出的请求若较晚返回，会覆盖较新的结果，UI 显示过时数据。
+✓ 正确：每次 run 时 `abortRef.current?.abort()` 取消上一次请求，或用版本号比较丢弃旧响应。
+原因：并发请求的响应顺序不由发出顺序决定，网络延迟决定到达顺序。
+
+**踩坑2：组件卸载后 setState 导致内存泄漏警告**
+❌ 错误：请求完成时组件已卸载，`setData(result)` 触发 React 警告（虽然 React 18 移除了该警告，但状态更新仍然发生）。
+✓ 正确：useEffect cleanup 中调用 `abortRef.current?.abort()`，并在 then/catch 中检查 `signal.aborted` 再 setState。
+原因：AbortController.abort() 后 fetch 会 reject，catch 中判断 AbortError 直接 return，不更新 state。
+
+**踩坑3：service 函数引用变化导致 useEffect 无限请求**
+❌ 错误：`useRequest(() => fetchUser(userId), ...)` 每次渲染传入新的箭头函数，如果 deps 包含 service，useEffect 无限触发。
+✓ 正确：useRequest 内部用 `serviceRef.current = service` 存最新 service，useEffect deps 只写 `[]`（仅挂载时执行）。
+原因：函数组件每次渲染都会产生新的函数引用，不能直接放入 useEffect 依赖数组。
+
+**踩坑4：重试时用同步 delay 阻塞事件循环**
+❌ 错误：重试前用 `while(Date.now() < target){}` 忙等待，彻底阻塞主线程。
+✓ 正确：`await new Promise(r => setTimeout(r, delay))` 异步等待，不阻塞其他任务。
+原因：JS 是单线程，同步 sleep 会冻结 UI 和所有其他异步任务。
+
+**踩坑5：轮询在页面不可见时继续发请求**
+❌ 错误：页面切到后台（`visibilityState === 'hidden'`）后轮询仍在继续，浪费带宽和服务端资源。
+✓ 正确：轮询回调中检查 `document.visibilityState`，不可见时跳过本次请求（但保留 timer 继续检查）；或监听 `visibilitychange` 事件暂停/恢复轮询。
+原因：后台标签页的请求对用户无感知收益，TanStack Query 的 `refetchOnWindowFocus` 也是同类优化。
+
+---
+
+## 扩展性追问
+
+**Q: 如何实现 SWR 风格的跨组件共享缓存（stale-while-revalidate）？**
+思路：将缓存提升到模块级别的 `Map<cacheKey, { data, subscribers, promise }>`；多个组件调用 `useRequest` 传相同 key 时，命中缓存立即返回 stale data（不 loading），同时在后台发起 revalidation，响应回来后更新 Map 并通知所有订阅该 key 的组件重渲染。这是 TanStack Query 的核心机制。
+
+**Q: 如何实现 dependent query（`enabled` 选项，依赖上一个请求的结果）？**
+思路：增加 `enabled?: boolean` 选项；useEffect 中检查 `if (!enabled) return;`，enabled 为 false 时不发起请求，state 保持 idle；当依赖的数据（如 userId）加载完成后，调用方传 `enabled: !!userId`，useEffect 依赖 `enabled` 变化时重新执行并发起请求。
+
+**Q: 如何实现带乐观更新的 mutation？**
+思路：调用 `mutate` 时先乐观更新本地 data（立即反映到 UI），同时发起真实请求；成功时用服务端返回值覆盖（确认乐观更新）；失败时回滚到 mutation 前的快照（在 mutate 开始时记录 `previousData = data`，catch 中 `setData(previousData)`）。TanStack Query 的 `useMutation` + `onMutate`/`onError` 钩子实现同样模式。
 
 ---
 

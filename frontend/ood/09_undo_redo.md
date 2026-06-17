@@ -91,6 +91,59 @@ stateDiagram-v2
 
 ---
 
+## 白板版（面试15分钟）
+
+```typescript
+// 面试写这个版本，生产实现见下方完整版
+interface Command {
+  execute(): void;
+  undo(): void;
+  description: string;
+}
+
+class HistoryManager {
+  private undoStack: Command[] = [];
+  private redoStack: Command[] = [];
+  // 省略：maxSize / 命令合并（mergeWindow）
+
+  execute(cmd: Command): void {
+    cmd.execute();
+    this.undoStack.push(cmd);
+    this.redoStack = []; // 新操作清空 redo 栈
+  }
+
+  undo(): void {
+    const cmd = this.undoStack.pop();
+    if (!cmd) return;
+    cmd.undo();
+    this.redoStack.push(cmd);
+  }
+
+  redo(): void {
+    const cmd = this.redoStack.pop();
+    if (!cmd) return;
+    cmd.execute();
+    this.undoStack.push(cmd);
+  }
+
+  canUndo() { return this.undoStack.length > 0; }
+  canRedo() { return this.redoStack.length > 0; }
+  getUndoDescription() { return this.undoStack.at(-1)?.description ?? null; }
+}
+
+// 简单命令示例
+function makeSetCommand<T>(target: Record<string, T>, key: string, newVal: T): Command {
+  const oldVal = target[key];
+  return {
+    description: `设置 ${key}`,
+    execute: () => { target[key] = newVal; },
+    undo: () => { target[key] = oldVal; },
+  };
+}
+```
+
+---
+
 ## 两种实现思路对比
 
 ```
@@ -534,6 +587,48 @@ function CanvasEditor() {
   );
 }
 ```
+
+---
+
+## 常见踩坑
+
+**踩坑1：execute 新命令时未清空 redoStack**
+❌ 错误：用户 undo 后执行新操作，redoStack 未清空，导致 redo 后拿到与新操作冲突的旧命令，数据不一致。
+✓ 正确：每次 `execute` 新命令时 `this.redoStack = []`，强制清除"未来"历史。
+原因：时间线在新操作处分叉，旧的未来不再有效。
+
+**踩坑2：MacroCommand（宏命令）undo 时未逆序执行**
+❌ 错误：`commands.forEach(cmd => cmd.undo())`，按正序撤销，结果与预期相反（应先撤销最后执行的命令）。
+✓ 正确：`[...commands].reverse().forEach(cmd => cmd.undo())` 或 `for (let i = commands.length - 1; i >= 0; i--)`。
+原因：操作的逆序原则——后做的先撤，就像"撤销粘贴"必须先删除粘贴内容再恢复剪贴板状态。
+
+**踩坑3：命令对象持有过时的 doc 引用**
+❌ 错误：InsertTextCommand 在构造时捕获 `doc` 对象引用，但 doc 是可变的，后续操作改变了 doc，undo 时基于旧引用操作了错误的状态。
+✓ 正确：命令应存储操作时的**快照数据**（如 position、text），而非对象引用；或确保 doc 始终是不可变的（每次操作产生新对象）。
+原因：可变引用在命令模式中是"定时炸弹"，undo 后的状态取决于命令之外的变更。
+
+**踩坑4：忘记限制 undoStack 大小**
+❌ 错误：无限 push 到 undoStack，长时间使用的应用（如 Figma 会话）内存不断增长，最终 OOM。
+✓ 正确：超过 `maxSize`（如 100）时 `undoStack.shift()` 移除最旧的命令，仅保留最近的 N 步。
+原因：命令对象可能持有数据快照（删除命令存储被删文本），历史越长内存越大。
+
+**踩坑5：命令合并时机判断错误**
+❌ 错误：按任意相邻同类命令都合并，导致跨越换行符的输入合并成一步，Ctrl+Z 一次撤销几段文字。
+✓ 正确：合并条件：时间窗口内（500ms）+ 位置连续 + 同类型命令，且换行符/空格等分隔符触发截断合并。
+原因：命令合并的目标是"符合用户直觉的撤销粒度"，过度合并和不合并一样影响体验。
+
+---
+
+## 扩展性追问
+
+**Q: 如何将命令历史持久化到 IndexedDB（刷新后仍可 undo）？**
+思路：命令接口增加 `type: string` 和 `payload: unknown` 字段（纯数据，无函数）；每次 execute 后将 `undoStack.map(cmd => ({ type, payload }))` 序列化存 IndexedDB；页面加载时读取并根据 type 注册的工厂函数重建 Command 实例。注意函数/闭包无法序列化，Command 必须是纯数据驱动的。
+
+**Q: 多人协同编辑时如何各自维护独立的 undo 栈？**
+思路：每个用户维护自己的 `localUndoStack`，只记录本用户的操作；undo 时生成该操作的逆操作（Inverse Operation）并发送给服务端（而非本地执行），服务端将逆操作广播给所有客户端；其他用户的历史不受影响。这是 OT（Operational Transformation）或 CRDT 协同编辑的标准做法，比"全局时间线"更可扩展。
+
+**Q: 如何支持分支历史（撤销到某一步后可以选择不同的历史分支）？**
+思路：将线性的两栈结构升级为树结构——每次 undo 不清空 redoStack 而是保存为子分支；每次 execute 新命令时创建新分支；UI 展示历史树（类似 Git 的 git log --graph），用户可以点击切换到任意历史节点。Vim 的 undo tree、VSCode 的 Timeline 都是这种设计。
 
 ---
 

@@ -89,6 +89,47 @@ classDiagram
 
 ---
 
+## 白板版（面试15分钟）
+
+```typescript
+// 面试写这个版本，生产实现见下方完整版
+type Reducer<S, A> = (state: S | undefined, action: A) => S;
+type Listener = () => void;
+
+function createStore<S, A extends { type: string }>(reducer: Reducer<S, A>, preloadedState?: S) {
+  let state: S = preloadedState ?? reducer(undefined, { type: '@@INIT' } as A);
+  const listeners = new Set<Listener>();
+
+  const getState = () => state;
+  const dispatch = (action: A) => {
+    state = reducer(state, action);
+    listeners.forEach(l => l());
+    return action;
+  };
+  const subscribe = (listener: Listener) => {
+    listeners.add(listener);
+    return () => listeners.delete(listener);
+  };
+
+  return { getState, dispatch, subscribe };
+}
+
+// 省略：isDispatching 保护 / enhancer 支持
+// 中间件：store => next => action => result（洋葱模型）
+function applyMiddleware(...middlewares: Function[]) {
+  return (createStore: Function) => (reducer: Function, preloadedState: unknown) => {
+    const store = createStore(reducer, preloadedState);
+    let dispatch = store.dispatch;
+    const chain = middlewares.map(m => m({ getState: store.getState, dispatch: (a: unknown) => dispatch(a) }));
+    // compose: 从右到左包裹，最左边的中间件最先执行
+    dispatch = chain.reduceRight((next, m) => m(next), store.dispatch);
+    return { ...store, dispatch };
+  };
+}
+```
+
+---
+
 ## createStore
 
 ```typescript
@@ -373,6 +414,43 @@ class TimeTravel<S, A extends { type: string }> {
   }
 }
 ```
+
+---
+
+## 常见踩坑
+
+**踩坑1：在 Reducer 中直接修改 state**
+❌ 错误：`state.count++; return state;`，直接改原对象，combineReducers 的引用相等检查 `nextState !== state` 永远为 false，订阅者不触发。
+✓ 正确：返回新对象：`return { ...state, count: state.count + 1 };`。
+原因：Redux 依赖引用比较来判断 state 是否变化，Reducer 必须是纯函数，不能改变原 state。
+
+**踩坑2：把服务端缓存数据（API 响应）放进 Redux**
+❌ 错误：`dispatch({ type: 'SET_USERS', payload: users })`，手动管理 loading/error/缓存/失效逻辑，样板代码极多。
+✓ 正确：服务端状态用 TanStack Query（自动缓存、后台刷新、跨组件共享），Redux/Zustand 只存客户端 UI 状态。
+原因：Redux 擅长可预测的客户端状态（modal 开关、选中项），服务端缓存有更专业的工具。
+
+**踩坑3：中间件调用 `dispatch` 而非 `next`**
+❌ 错误：在中间件中将 action 传给 `store.dispatch` 而非 `next`，导致 action 重走整个中间件链，产生无限循环。
+✓ 正确：普通 action 调用 `next(action)` 传给下一个中间件，只有需要重新派发新 action 时才调用 `dispatch`。
+原因：`next` 是链中下一个中间件，`dispatch` 是重新进入整个链的入口，两者语义不同。
+
+**踩坑4：subscribe 回调中读取旧 state**
+❌ 错误：`store.subscribe(() => console.log(prevState))`，闭包捕获了旧的 state 引用，subscribe 拿不到最新值。
+✓ 正确：subscribe 回调内通过 `store.getState()` 读取最新 state，不依赖闭包捕获的变量。
+原因：subscribe 触发时 state 已更新，必须通过 getState() 拉取，不能用旧的引用。
+
+---
+
+## 扩展性追问
+
+**Q: 如何实现 Redux DevTools 的时间旅行调试？**
+思路：维护 `history: { action, state }[]` 数组和 `currentIndex`；每次 dispatch 追加记录；`jumpTo(index)` 时直接将 store 的 state 替换为 `history[index].state`（或从 index=0 重放所有 action）；新 dispatch 时清除 `currentIndex` 之后的历史（分叉后不能再 redo）。Redux DevTools 实际使用"重放"而非"快照跳转"，以正确处理副作用。
+
+**Q: 如何实现类似 Redux Toolkit 的 slice 模式？**
+思路：`createSlice({ name, initialState, reducers })` 函数自动生成 action creators 和 reducer——遍历 `reducers` 对象，每个方法名对应 `${name}/${methodName}` 的 action type；整合所有 case 生成一个 `switch` reducer；返回 `{ actions, reducer }`。结合 `immer` 可以让 reducer 内部"直接修改"，immer 代理对象会产生新的不可变对象。
+
+**Q: 如何为 selector 添加记忆化（memoized selectors）？**
+思路：`createSelector(inputSelector1, inputSelector2, resultFn)` 缓存上次的输入和输出——当 `inputSelector1(state)` 和 `inputSelector2(state)` 返回值（引用）未变时，直接返回上次 `resultFn` 的结果，跳过重新计算。这是 reselect 库的核心原理，防止派生状态（如过滤列表）在无关 state 变化时重新计算导致组件不必要重渲染。
 
 ---
 

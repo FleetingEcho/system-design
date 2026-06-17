@@ -347,6 +347,30 @@ export async function generateStaticParams() {
 
 ---
 
+## 常见踩坑
+
+**踩坑1：SSR 页面未缓存导致服务器过载**
+❌ 错误：每个请求都实时 SSR，高并发时服务端 CPU 被渲染占满，TTFB 飙升到 2s+。
+✓ 正确：SSR 结果加 CDN 缓存（s-maxage + stale-while-revalidate），或使用 ISR 降低实时渲染压力。
+原因：SSR 的服务端渲染是 CPU 密集型操作，必须配合缓存策略才能扛住流量。
+
+**踩坑2：Hydration Mismatch 因为 Date.now() 或 Math.random()**
+❌ 错误：组件中直接用 `Date.now()` 生成 key 或内容，服务端和客户端执行时间不同导致 HTML 不匹配，React 报 Hydration Error。
+✓ 正确：时间/随机相关逻辑放在 `useEffect` 中（仅客户端执行），或用 `suppressHydrationWarning` 标记允许差异的节点。
+原因：SSR 要求服务端和客户端首次渲染结果完全一致，任何非确定性代码都会导致 mismatch。
+
+**踩坑3：SSG 的 revalidate 时间设置不当**
+❌ 错误：电商商品页 revalidate 设置为 3600s（1小时），秒杀活动时价格改变了 1 小时后才更新，用户看到旧价格。
+✓ 正确：高频变化的数据（库存/价格）走客户端 fetch，页面框架走 ISR，两层分离。
+原因：ISR 不是实时的，不能用于对时效性要求高的数据。
+
+**踩坑4：ISR 的"雷群效应"**
+❌ 错误：大量页面同时过期，瞬间收到大量 revalidation 请求，数据库/API 被打垮。
+✓ 正确：为不同页面的 revalidate 时间加随机抖动（`revalidate: 3600 + Math.random() * 600`），分散重建时机。
+原因：所有 ISR 页面用相同 revalidate 时间，同时过期时产生流量峰值。
+
+---
+
 ## 面试常见追问
 
 **Q: SSR 和 SSG 的 SEO 差别？**
