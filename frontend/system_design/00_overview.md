@@ -44,12 +44,15 @@
 | [20 错误监控与边界](20_error_monitoring.md) | 稳定性 | React Error Boundary；全局错误捕获；Sentry 集成；Source Map；错误告警分级；TanStack Query 错误处理 |
 | [21 动画性能](21_animation_performance.md) | 渲染性能 | 浏览器渲染流水线；transform vs top/left；will-change；rAF；WAAPI；Framer Motion；FLIP；Layout Thrashing |
 | [22 可访问性（a11y）](22_accessibility.md) | 无障碍 | WCAG 2.1 POUR；语义化 HTML；ARIA；键盘导航；焦点管理；颜色对比度；表单可访问性；axe 自动检测 |
+| [23 Feed 流设计](23_feed_design.md) | 信息流 | 虚拟列表；无限滚动（IntersectionObserver）；SSE 实时新帖；乐观更新（点赞回滚）；cursor 分页 |
+| [24 协作编辑器](24_collaborative_editor_frontend.md) | 多人协作 | CRDT 客户端（Yjs）；光标同步（Awareness）；WebSocket 离线队列；Yjs + ProseMirror 集成 |
+| [25 视频播放器](25_video_player.md) | 流媒体 | HLS/DASH 自适应码率（ABR）；hls.js 接入；缓冲策略；Quality Selector；续播位置；PiP |
 
 ---
 
 ## 面试中如何呈现前端系统设计
 
-前端系统设计面试与后端一样，**也用 45 分钟框架**（见 [09_interview_guide](../09_ood_guide/09_interview_guide.md)），但侧重点不同：
+前端系统设计面试与后端一样，**也用 45 分钟框架**（见 [09_interview_guide](../../backend/ood/guide/09_interview_guide.md)），但侧重点不同：
 
 ```
 需求澄清（5 min）

@@ -4,8 +4,8 @@
 
 ```
 ├── frontend/
-│   ├── system_design/   前端系统设计（23 篇）
-│   └── ood/             前端 OOD 题（建设中）
+│   ├── system_design/   前端系统设计（26 篇）
+│   └── ood/             前端 OOD 题（6 题）
 ├── backend/
 │   ├── system_design/   后端系统设计（50+ 篇）
 │   └── ood/
@@ -47,10 +47,20 @@
 | [20 错误监控与边界](frontend/system_design/20_error_monitoring.md) | 稳定性 | React Error Boundary；全局错误捕获；Sentry + Source Map；错误告警分级 |
 | [21 动画性能](frontend/system_design/21_animation_performance.md) | 渲染性能 | 浏览器渲染流水线；transform/opacity GPU 加速；will-change；rAF；WAAPI；Framer Motion；FLIP |
 | [22 可访问性（a11y）](frontend/system_design/22_accessibility.md) | 无障碍 | WCAG 2.1 POUR；语义化 HTML；ARIA；键盘导航与焦点陷阱；颜色对比度；axe 自动检测 |
+| [23 Feed 流设计](frontend/system_design/23_feed_design.md) | 信息流 | 虚拟列表；无限滚动；SSE 实时新帖；乐观更新（点赞回滚）；cursor 分页 |
+| [24 协作编辑器](frontend/system_design/24_collaborative_editor_frontend.md) | 多人协作 | CRDT（Yjs）；光标同步；WebSocket 离线队列；冲突合并 |
+| [25 视频播放器](frontend/system_design/25_video_player.md) | 流媒体 | HLS/DASH；自适应码率 ABR；hls.js；缓冲策略；Quality Selector；续播；PiP |
 
 ### 前端 OOD
 
-> 建设中 — 见 [frontend/ood/README.md](frontend/ood/README.md)
+| 文件 | 题目 | 考察点 |
+|------|------|--------|
+| [01 EventEmitter](frontend/ood/01_event_emitter.md) | 实现 EventEmitter | 观察者模式；on/off/once；内存泄漏防护；泛型类型安全 |
+| [02 Promise](frontend/ood/02_promise.md) | 实现 Promise（Promises/A+） | 状态机；then 链；微任务队列；循环引用；all/race/allSettled |
+| [03 SPA Router](frontend/ood/03_spa_router.md) | 设计前端路由 | History API；路径→正则；嵌套路由；导航守卫；懒加载 |
+| [04 Virtual DOM](frontend/ood/04_virtual_dom.md) | Virtual DOM + Diff | VNode；createElement；同层 Diff；key 优化；O(n) |
+| [05 Mini Redux](frontend/ood/05_mini_redux.md) | 设计 Mini Redux | createStore；中间件链；combineReducers；thunk；时间旅行 |
+| [06 工具函数](frontend/ood/06_utils.md) | Debounce/Throttle/LazyLoad/Memoize | 闭包；定时器；IntersectionObserver；LRU 缓存 |
 
 ---
 
@@ -225,6 +235,7 @@
 | [25 分布式邮件服务](backend/system_design/06_case_studies/25_distributed_email.md) | SendGrid / SES | SMTP 发送流程；SPF/DKIM/DMARC；软退信 vs 硬退信；退订抑制列表 |
 | [26 游戏排行榜](backend/system_design/06_case_studies/26_gaming_leaderboard.md) | 实时排行榜 | Redis ZSet（ZADD GT/ZREVRANK）；虚拟节点分片；Top 100 缓存刷新 |
 | [27 数字钱包](backend/system_design/06_case_studies/27_digital_wallet.md) | 支付宝 / PayPal | 复式记账；幂等转账；乐观锁防超扣；本地消息表跨分片；日终对账 |
+| [28 推荐系统](backend/system_design/06_case_studies/28_recommendation_system.md) | 电商/视频推荐 | 两阶段召回+排序；协同过滤；向量召回（FAISS）；Wide&Deep 模型；特征工程；A/B 测试 |
 
 #### 07 真实公司架构拆解
 

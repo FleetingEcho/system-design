@@ -5,18 +5,16 @@
 
 ---
 
-## 题目列表（待补充）
+## 题目列表
 
-| 题目 | 考察点 |
-|------|--------|
-| 实现 EventEmitter | 观察者模式、内存泄漏防护、once/off |
-| 实现 Promise | 状态机、链式调用、微任务队列 |
-| 设计前端路由（SPA Router） | History API、路由匹配、嵌套路由 |
-| 实现 Virtual DOM + Diff 算法 | 树遍历、Reconciliation、最小化 DOM 操作 |
-| 设计 Mini Redux | 单向数据流、中间件链、时间旅行调试 |
-| 实现 Debounce / Throttle | 闭包、定时器、立即执行模式 |
-| 实现图片懒加载组件 | Intersection Observer、加载队列 |
-| 设计 React Hook（useRequest） | 异步状态机、竞态条件处理、缓存 |
+| 文件 | 题目 | 考察点 |
+|------|------|--------|
+| [01 EventEmitter](01_event_emitter.md) | 实现 EventEmitter | 观察者模式；on/off/once/emit；内存泄漏防护；泛型类型安全 |
+| [02 Promise](02_promise.md) | 实现 Promise（Promises/A+） | 状态机；then 链式调用；微任务队列；循环引用检测；all/race/allSettled |
+| [03 SPA Router](03_spa_router.md) | 设计前端路由 | History API；路径→正则；嵌套路由；导航守卫；懒加载路由 |
+| [04 Virtual DOM](04_virtual_dom.md) | Virtual DOM + Diff | VNode 树；createElement；同层 Diff；带 key 列表优化；O(n) 复杂度 |
+| [05 Mini Redux](05_mini_redux.md) | 设计 Mini Redux | createStore；中间件链（洋葱模型）；combineReducers；thunk；时间旅行 |
+| [06 工具函数](06_utils.md) | Debounce/Throttle/LazyLoad/Memoize | 闭包；定时器；IntersectionObserver；LRU 缓存 |
 
 ---
 
