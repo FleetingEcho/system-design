@@ -5,6 +5,38 @@
 
 ---
 
+## 设计思路（面试开场白）
+
+"这四个工具函数各有其核心问题：
+Debounce（防抖）——输入期间不执行，停止输入后才执行；用闭包保存 timer，每次调用先 clearTimeout 再 setTimeout；适合搜索框。
+Throttle（节流）——固定频率执行，高频触发也最多每 N ms 执行一次；用时间戳或 timer 实现；适合滚动/resize 事件。
+Memoize（缓存）——相同参数不重新计算；用 Map 做缓存（支持对象 key）；注意缓存大小限制（LRU）。
+LazyLoad——IntersectionObserver 监听元素进入视口，进入时加载图片（img.src = data-src）；注意 disconnect 防内存泄漏。"
+
+---
+
+## 架构图：Debounce vs Throttle 行为对比
+
+```mermaid
+graph LR
+    subgraph Input["用户输入（高频触发）"]
+        T1[t=0ms] --> T2[t=50ms] --> T3[t=100ms] --> T4[t=150ms] --> T5[t=500ms 停止]
+    end
+
+    subgraph Debounce["Debounce delay=300ms"]
+        DB[只在 t=800ms 执行一次 停止后300ms]
+    end
+
+    subgraph Throttle["Throttle interval=200ms"]
+        TH1[t=0ms 执行] --> TH2[t=200ms 执行] --> TH3[t=400ms 执行] --> TH4[t=600ms 执行]
+    end
+
+    Input --> Debounce
+    Input --> Throttle
+```
+
+---
+
 ## Debounce（防抖）
 
 **问题**：搜索框输入时，每次按键都触发 API 请求，浪费资源。

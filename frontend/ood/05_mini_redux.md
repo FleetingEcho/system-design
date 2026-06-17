@@ -5,6 +5,67 @@
 
 ---
 
+## 设计思路（面试开场白）
+
+"Redux 有三大原则：单一数据源（一个 Store）、State 只读（只能 dispatch action）、Reducer 纯函数（无副作用）。
+createStore 核心实现：用闭包保存 state 和 listeners 数组；dispatch 调用 reducer 产生新 state，然后通知所有 listeners；subscribe 往 listeners 数组 push 回调并返回 unsubscribe 函数。
+中间件是这道题的难点——applyMiddleware 用 compose 把多个中间件串联成洋葱模型（koa 思路）。每个中间件签名是 store => next => action，compose 让它们从右到左包裹。
+面试亮点：说出为什么 Redux 现在不流行了——手动管理 loading/error/缓存 太麻烦，TanStack Query 把服务端状态这块解决了，Zustand 让客户端状态更简单。"
+
+---
+
+## 架构图：Redux 单向数据流
+
+```mermaid
+graph LR
+    View[View 组件] -->|dispatch action| Store
+    Store -->|reducer 纯函数| NewState[新 State]
+    NewState --> Store
+    Store -->|subscribe 通知| View
+
+    subgraph Middleware["中间件链 洋葱模型"]
+        Logger[Logger 中间件] --> Thunk[Thunk 中间件]
+        Thunk --> Dispatch[原始 dispatch]
+    end
+
+    View -->|dispatch| Logger
+```
+
+---
+
+## 类图
+
+```mermaid
+classDiagram
+    class Store {
+        -state: S
+        -listeners: Listener[]
+        -reducer: Reducer
+        +getState() S
+        +dispatch(action: Action) Action
+        +subscribe(listener: Listener) Unsubscribe
+    }
+
+    class Middleware {
+        <<interface>>
+        +apply(store) next => action => unknown
+    }
+
+    class ThunkMiddleware {
+        +apply(store) next => action => unknown
+    }
+
+    class LoggerMiddleware {
+        +apply(store) next => action => unknown
+    }
+
+    Store --> Middleware : enhancer 增强
+    ThunkMiddleware ..|> Middleware
+    LoggerMiddleware ..|> Middleware
+```
+
+---
+
 ## 需求分析
 
 ```

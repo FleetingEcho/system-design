@@ -5,6 +5,81 @@
 
 ---
 
+## 设计思路（面试开场白）
+
+"SPA Router 的核心是两件事：URL 变化的监听，和路径到组件的映射。
+先确认模式——hash 模式（监听 hashchange）还是 history 模式（监听 popstate + 拦截 pushState）。
+类设计分三层：Router 负责导航控制和守卫执行；RouteRecord 是配置（path + component + children）；Route 是当前路由快照（params + query + matched 链）。
+路径匹配把路由配置转换为正则表达式（/user/:id → /user/([^/]+) 并捕获 id），支持精确/动态/通配符三类。
+导航守卫是中间件模式，push 时串行执行所有 beforeEach，任一返回 false 则中止导航。"
+
+---
+
+## 类图
+
+```mermaid
+classDiagram
+    class Router {
+        -routes: RouteRecord[]
+        -mode: hash | history
+        -currentRoute: Route
+        -guards: NavigationGuard[]
+        +push(to: string | Location) Promise~void~
+        +replace(to: string | Location) Promise~void~
+        +back() void
+        +go(delta: number) void
+        +beforeEach(guard: NavigationGuard) Function
+        +resolve(path: string) RouteMatch
+        -listen() void
+        -runGuards(to, from) Promise~boolean~
+    }
+
+    class RouteRecord {
+        +path: string
+        +component: Component | LazyLoader
+        +children?: RouteRecord[]
+        +meta?: Record~string, unknown~
+        +name?: string
+    }
+
+    class Route {
+        +path: string
+        +params: Record~string, string~
+        +query: Record~string, string~
+        +meta: Record~string, unknown~
+        +matched: RouteRecord[]
+    }
+
+    class PathMatcher {
+        +compile(path: string) RegExp
+        +match(pattern: string, path: string) Params | null
+    }
+
+    Router --> RouteRecord : 配置路由
+    Router --> Route : 维护当前路由
+    Router --> PathMatcher : 路径匹配
+    Route --> RouteRecord : matched 链引用
+```
+
+---
+
+## Router 导航状态机
+
+```mermaid
+stateDiagram-v2
+    [*] --> Idle: 初始化
+    Idle --> Navigating: push() / replace() / popstate
+    Navigating --> GuardCheck: 运行 beforeEach 守卫
+    GuardCheck --> Loading: 守卫全部通过
+    GuardCheck --> Idle: 守卫返回 false 中止
+    Loading --> Rendering: 懒加载组件完成
+    Loading --> Error: 加载失败
+    Rendering --> Idle: 视图更新完成 运行 afterEach
+    Error --> Idle: 错误处理完成
+```
+
+---
+
 ## 需求分析
 
 ```

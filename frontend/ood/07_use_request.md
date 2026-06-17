@@ -5,6 +5,71 @@
 
 ---
 
+## 设计思路（面试开场白）
+
+"useRequest 是对 fetch 的状态管理封装，核心是管理四个状态：loading/error/data/idle。
+最重要的难点是竞态条件——用户快速切换，并发请求的响应顺序无法保证。解法一是 AbortController（取消上一次飞行中的请求，推荐）；解法二是版本号（比较响应版本，丢弃旧的响应）。
+设计扩展性：manual 模式（不自动执行，等 run() 触发）；轮询（useEffect 里 setInterval）；指数退避重试（失败后 delay * 2^retryCount 后重试）；组件卸载时 AbortController.abort() 取消飞行中请求防内存泄漏。"
+
+---
+
+## 状态机图
+
+```mermaid
+stateDiagram-v2
+    [*] --> Idle: manual 模式初始
+    [*] --> Loading: auto 模式自动触发
+    Idle --> Loading: run() 手动触发
+    Loading --> Success: 请求成功
+    Loading --> Error: 请求失败
+    Loading --> Idle: 组件卸载 abort
+    Success --> Loading: 轮询刷新 / 再次 run()
+    Error --> Loading: 重试 指数退避
+    Error --> Idle: 超过最大重试次数
+    Success --> Idle: 停止轮询
+```
+
+---
+
+## 类图
+
+```mermaid
+classDiagram
+    class UseRequestOptions {
+        +manual: boolean
+        +pollingInterval?: number
+        +retryCount?: number
+        +retryDelay?: number
+        +debounceWait?: number
+        +throttleWait?: number
+        +onSuccess?: Function
+        +onError?: Function
+    }
+
+    class UseRequestResult {
+        +data: T | undefined
+        +loading: boolean
+        +error: Error | undefined
+        +run(...args) void
+        +cancel() void
+        +refresh() void
+    }
+
+    class RequestController {
+        -abortController: AbortController
+        -retryCount: number
+        -pollingTimer: Timer
+        +execute(service, args) Promise
+        +cancel() void
+        +retry() void
+    }
+
+    UseRequestOptions --> RequestController : 配置驱动
+    RequestController --> UseRequestResult : 状态输出
+```
+
+---
+
 ## 需求分析
 
 ```

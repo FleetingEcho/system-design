@@ -5,6 +5,38 @@
 
 ---
 
+## 面试框架（45分钟怎么答）
+
+**第一步（开场）**：先说测试金字塔——单元测试（Vitest，多）→ 集成测试（Testing Library，适量）→ E2E（Playwright，少），再说 CI 门控
+**第二步（核心）**：MSW v2 拦截 API（测试不依赖真实后端）；Playwright POM 模式；Chromatic 视觉回归（截图对比 snapshot）
+**第三步（深挖）**：Lighthouse CI 在 PR 中自动跑性能回归；Preview Deploy（每个 PR 独立预览 URL）；Feature Flag 在测试中的处理
+**差异化得分点**：能说出"测什么、不测什么"——实现细节不测（如内部状态），测用户可见行为（组件渲染结果 + 交互）
+
+---
+
+## 架构图：前端 CI/CD 流水线
+
+```mermaid
+graph LR
+    PR[Pull Request] --> Lint[ESLint + TypeScript 类型检查]
+    Lint --> Unit[Vitest 单元测试]
+    Unit --> Integration[Testing Library 集成测试]
+    Integration --> E2E[Playwright E2E 关键路径]
+    E2E --> Visual[Chromatic 视觉回归]
+    Visual --> Perf[Lighthouse CI LCP/TBT/CLS]
+    Perf --> Preview[Preview Deploy 独立预览 URL]
+    Preview --> Review[人工 Code Review]
+    Review -->|合并| Deploy[生产部署]
+
+    subgraph "测试基础设施"
+        MSW[MSW v2 API Mock]
+        MSW -.->|拦截 fetch| Unit
+        MSW -.-> Integration
+    end
+```
+
+---
+
 ## 测试金字塔
 
 ```

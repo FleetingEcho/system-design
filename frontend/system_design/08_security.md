@@ -5,6 +5,66 @@
 
 ---
 
+## 面试框架（45分钟怎么答）
+
+**第一步（开场）**：主动列出前端安全四大类——XSS / CSRF / 认证 Token 存储 / 供应链攻击，再按重要性展开
+**第二步（核心）**：XSS 三类 + 防御（输出编码/DOMPurify/CSP nonce）；CSRF 防御（SameSite=strict Cookie + CSRF Token）
+**第三步（深挖）**：HttpOnly Cookie vs JWT in LocalStorage 的安全权衡；OAuth2 PKCE 流程（SPA 必须用）；CSP 配置中 nonce 模式 vs unsafe-inline
+**差异化得分点**：提出 "npm 供应链攻击" 防御（lockfile + npm audit + 禁止 postinstall script）；能说出 HSTS 的作用
+
+---
+
+## 架构图：前端安全防御层次
+
+```mermaid
+graph TD
+    subgraph XSS防御
+        X1[React JSX 自动 HTML 编码]
+        X2[dangerouslySetInnerHTML 必须 DOMPurify 净化]
+        X3[CSP nonce 拦截未授权脚本]
+    end
+
+    subgraph CSRF防御
+        C1[SameSite=strict Cookie 跨站请求不带 Cookie]
+        C2[CSRF Token 请求头验证]
+        C3[双提交 Cookie 模式]
+    end
+
+    subgraph Auth认证
+        A1[HttpOnly Cookie 存 Token JS不可读]
+        A2[SameSite + Secure 属性]
+        A3[短期 Access Token 15min + Refresh Token 续签]
+    end
+
+    subgraph Headers安全响应头
+        H1[HSTS 强制 HTTPS]
+        H2[X-Frame-Options DENY 防点击劫持]
+        H3[X-Content-Type-Options nosniff]
+        H4[Referrer-Policy 防路径泄露]
+    end
+
+    Browser[浏览器请求] --> Headers安全响应头
+    Browser --> CSRF防御
+    Browser --> XSS防御
+    Browser --> Auth认证
+```
+
+---
+
+## 决策树：Token 存储方案
+
+```mermaid
+flowchart TD
+    A{是否跨域 API?} -->|否 同域| B[HttpOnly Cookie 最安全]
+    A -->|是 跨域| C{移动端 or 纯API?}
+    C -->|是| D[JWT 存内存 + Refresh Token 存 HttpOnly Cookie]
+    C -->|否 Web| B
+    B --> E[SameSite=strict 防 CSRF]
+    D --> F[Access Token 15min 过期 XSS窃取后窗口极短]
+```
+
+---
+
 ## XSS（跨站脚本攻击）
 
 ### 攻击原理

@@ -5,6 +5,65 @@
 
 ---
 
+## 面试框架（45分钟怎么答）
+
+**第一步（开场）**：说清楚 BFF 解决的问题——客户端多次请求/过度获取/聚合逻辑分散，然后问面试官"客户端是否多样（Web+Mobile）？是否有 TypeScript 全栈约束？"
+**第二步（核心）**：GraphQL BFF 架构（DataLoader 解决 N+1）+ tRPC 全栈类型安全——两种方案都要能讲
+**第三步（深挖）**：DataLoader 批量机制（同一 tick 内收集 → 下一 tick 批量请求）；GraphQL 安全（depth limit + complexity limit）；Persisted Query 让 POST 变 GET 走 CDN 缓存
+**差异化得分点**：主动提 "BFF 会不会变成新的巨石" 及其解法（按客户端拆分 / Schema Federation）
+
+---
+
+## 架构图：GraphQL BFF 数据流
+
+```mermaid
+graph LR
+    subgraph Clients["客户端"]
+        Web[Web Browser]
+        iOS[iOS App]
+        Android[Android App]
+    end
+
+    subgraph BFF["GraphQL BFF Node.js"]
+        GQL[POST /graphql]
+        DL[DataLoader 批量去重]
+        Cache[Redis 响应缓存]
+    end
+
+    subgraph Services["微服务层"]
+        US[用户服务 gRPC]
+        PS[商品服务 REST]
+        OS[订单服务 gRPC]
+        RS[推荐服务 REST]
+    end
+
+    Web -->|按需查询所需字段| GQL
+    iOS --> GQL
+    Android --> GQL
+    GQL --> DL
+    DL -->|Promise.all 并行| US
+    DL --> PS
+    DL --> OS
+    DL --> RS
+    GQL <--> Cache
+```
+
+---
+
+## 决策树：REST vs GraphQL vs tRPC
+
+```mermaid
+flowchart TD
+    A{纯 TypeScript 全栈 Monorepo?} -->|是| B[tRPC 零配置类型安全]
+    A -->|否| C{多客户端多语言后端?}
+    C -->|是| D[GraphQL BFF + DataLoader]
+    C -->|否| E{需求稳定 团队小?}
+    E -->|是| F[REST BFF 简单可缓存]
+    E -->|否 需求多变| D
+```
+
+---
+
 ## 为什么需要 BFF
 
 ### 通用后端 API 的痛点

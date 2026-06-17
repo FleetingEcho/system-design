@@ -5,6 +5,53 @@
 
 ---
 
+## 面试框架（45分钟怎么答）
+
+**第一步（开场）**：先区分 WebSocket vs SSE vs 轮询——单向推送用 SSE；双向通信用 WebSocket；不支持实时用轮询降级
+**第二步（核心）**：WebSocket 重连（指数退避 + 抖动）；客户端消息队列（断线时缓存，重连后补发）；乐观 UI（先更新 UI，收到服务端确认再最终化）
+**第三步（深挖）**：Presence 在线状态（心跳 + TTL）；消息去重（messageId 防止网络重传导致重复）；页面切换时连接的 cleanup
+**差异化得分点**：提出"连接保活"策略（应用层心跳 ping/pong，因为 NAT/代理可能会关闭空闲 TCP 连接）
+
+---
+
+## 架构图：WebSocket 客户端状态机
+
+```mermaid
+stateDiagram-v2
+    [*] --> DISCONNECTED
+    DISCONNECTED --> CONNECTING: connect()
+    CONNECTING --> CONNECTED: onopen
+    CONNECTING --> DISCONNECTED: onerror / 超时
+    CONNECTED --> DISCONNECTED: onclose / 网络断开
+    DISCONNECTED --> CONNECTING: 指数退避重连 1s→2s→4s→8s→max30s
+    CONNECTED --> CONNECTED: 收发消息 心跳 ping/pong
+    CONNECTED --> [*]: destroy() 组件卸载
+```
+
+---
+
+## 架构图：实时消息队列与乐观 UI
+
+```mermaid
+graph LR
+    subgraph Client["客户端"]
+        UI[用户操作 如发送消息]
+        UI -->|立即| Optimistic[乐观更新 UI 显示 pending 状态]
+        UI --> Queue[消息队列]
+        Queue -->|WebSocket 连通| WS[发送 WebSocket 消息]
+        Queue -->|WebSocket 断开| Buffer[本地缓冲]
+        Buffer -->|重连成功| WS
+    end
+
+    subgraph Server["服务端"]
+        WS --> Ack[服务端确认 ACK + messageId]
+        Ack -->|成功| Final[最终化 UI confirmed]
+        Ack -->|失败| Rollback[回滚 UI 显示错误]
+    end
+```
+
+---
+
 ## 连接管理
 
 ### WebSocket 客户端封装

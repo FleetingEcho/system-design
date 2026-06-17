@@ -5,6 +5,65 @@
 
 ---
 
+## 面试框架（45分钟怎么答）
+
+**第一步（开场）**：先问场景约束——React 还是 Vue 生态？内容站还是交互 App？团队 TypeScript 深度？性能要求？
+**第二步（核心）**：给出选型决策树；重点对比 Next.js vs Remix（RSC vs loader/action；缓存模型复杂度；表单场景）
+**第三步（深挖）**：Astro Islands 架构（默认零 JS）；SvelteKit 编译器优势（包体积对比）；TanStack Start 类型安全端到端推断
+**差异化得分点**：能说出各框架的缺点（Next.js App Router 学习曲线陡；Remix 静态生成支持有限）——比只讲优点更有说服力
+
+---
+
+## 架构图：框架渲染模型对比
+
+```mermaid
+graph TD
+    subgraph NextJS["Next.js App Router"]
+        N1[RSC 服务端组件 默认]
+        N2[use client 客户端组件 显式标注]
+        N3[Server Actions 表单处理]
+        N1 --> N2
+    end
+
+    subgraph Remix["Remix / RR v7"]
+        R1[loader 服务端数据加载]
+        R2[action 表单提交处理]
+        R3[嵌套路由 并行 Loader]
+        R1 --> R3
+        R2 --> R3
+    end
+
+    subgraph Astro["Astro Islands"]
+        A1[静态 HTML 海洋 零JS]
+        A2[React Island client:load]
+        A3[Vue Island client:idle]
+        A4[Svelte Island client:visible]
+        A1 --> A2
+        A1 --> A3
+        A1 --> A4
+    end
+```
+
+---
+
+## 决策树：框架选型
+
+```mermaid
+flowchart TD
+    A{Vue 生态?} -->|是| Nuxt[Nuxt]
+    A -->|否| B{内容站 博客/文档/营销?}
+    B -->|是| Astro[Astro 默认零JS]
+    B -->|否| C{极致性能 包体积?}
+    C -->|是| SK[SvelteKit ~3KB]
+    C -->|否| D{表单密集 Web标准优先?}
+    D -->|是| Remix[Remix / RR v7]
+    D -->|否| E{TanStack重度用户 类型安全优先?}
+    E -->|是| TS[TanStack Start 注意Beta]
+    E -->|否| NextJS[Next.js 默认选择]
+```
+
+---
+
 ## 框架全景图
 
 | 框架 | 生态 | 渲染策略 | 路由模型 | 数据获取 | 适用场景 |

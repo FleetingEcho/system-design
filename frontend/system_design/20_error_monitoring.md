@@ -5,6 +5,58 @@
 
 ---
 
+## 面试框架（45分钟怎么答）
+
+**第一步（开场）**：先列错误分类（JS 运行时 / Promise 未处理 / 网络错误 / 资源加载失败 / React 渲染错误），再说"捕获 → 上报 → 定位 → 降级" 四个环节
+**第二步（核心）**：Error Boundary（class 组件 componentDidCatch）捕获渲染错误；window.onerror + unhandledrejection 全局捕获；Sentry captureException 上报
+**第三步（深挖）**：Source Map 反解 minified 堆栈（上传到 Sentry，不对外暴露）；错误告警分级（P0 立即响应 vs P2 工作时间处理）；TanStack Query 错误边界集成
+**差异化得分点**：提出"错误指纹"（fingerprinting）——同类错误合并，防止告警风暴；提出用 Sentry Replay 回放错误发生时的用户操作
+
+---
+
+## 架构图：错误监控全链路
+
+```mermaid
+graph TD
+    subgraph Capture["错误捕获层"]
+        EB[React Error Boundary 渲染错误]
+        GE[window.onerror JS运行时]
+        URP[unhandledrejection Promise]
+        NE[fetch 拦截器 网络错误]
+    end
+
+    subgraph Report["上报层"]
+        Queue[本地队列 批量上报]
+        Beacon[Beacon API 页面关闭时]
+        Sentry[Sentry SDK]
+    end
+
+    subgraph Process["处理层"]
+        SM[Source Map 反解堆栈]
+        FP[错误指纹 合并同类]
+        Alert[告警分级 P0/P1/P2]
+    end
+
+    subgraph Response["响应层"]
+        Fallback[Error Boundary Fallback UI 降级]
+        PD[PagerDuty P0 告警]
+        Grafana[Grafana 错误率趋势]
+    end
+
+    EB --> Queue
+    GE --> Queue
+    URP --> Queue
+    NE --> Queue
+    Queue --> Sentry
+    Beacon --> Sentry
+    Sentry --> SM --> FP --> Alert
+    Alert --> PD
+    Alert --> Grafana
+    EB --> Fallback
+```
+
+---
+
 ## 错误分类
 
 ```

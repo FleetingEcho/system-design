@@ -5,6 +5,54 @@
 
 ---
 
+## 面试框架（45分钟怎么答）
+
+**第一步（开场）**：先澄清约束——最大文件大小？断点续传？是否需要直传云存储（S3）？客户端压缩/格式转换需求？
+**第二步（核心）**：大文件分块上传流程（file.slice → 并发上传分块 → 服务端合并）；Pre-signed URL 直传 S3（服务端不中转，节省带宽）
+**第三步（深挖）**：断点续传（上传前查询已上传分块列表，跳过已完成的）；客户端图片压缩（Canvas + toBlob 降分辨率）；上传安全（文件类型校验不能只看扩展名，要读 magic bytes）
+**差异化得分点**：提出 tus 协议（标准化断点续传，有官方客户端库 tus-js-client）；并发限制（同时最多 3 个分块请求，避免占满带宽）
+
+---
+
+## 架构图：大文件分块上传流程
+
+```mermaid
+sequenceDiagram
+    participant Client as 浏览器客户端
+    participant BFF as BFF 服务
+    participant S3 as AWS S3
+
+    Client->>BFF: 1. 初始化上传 文件名/大小/分块数
+    BFF->>S3: CreateMultipartUpload
+    S3-->>BFF: uploadId
+    BFF-->>Client: uploadId + 各分块 Pre-signed URL
+
+    loop 并发上传分块 最多3个并发
+        Client->>S3: 2. PUT 分块 直传 不经过 BFF
+        S3-->>Client: ETag
+    end
+
+    Client->>BFF: 3. 完成上传 所有分块 ETag 列表
+    BFF->>S3: CompleteMultipartUpload
+    S3-->>BFF: 最终文件 URL
+    BFF-->>Client: 文件访问 URL
+```
+
+---
+
+## 决策树：上传方案选型
+
+```mermaid
+flowchart TD
+    A{文件大小?} -->|< 5MB| B[直接 POST multipart/form-data]
+    A -->|5MB - 5GB| C{需要断点续传?}
+    C -->|否| D[分块上传 + Pre-signed URL 直传 S3]
+    C -->|是 不稳定网络| E[tus 协议 标准化断点续传]
+    A -->|> 5GB 视频/数据集| E
+```
+
+---
+
 ## 上传方案选型
 
 | 方案 | 适用场景 | 最大文件 | 断点续传 |

@@ -5,6 +5,38 @@
 
 ---
 
+## 面试框架（45分钟怎么答）
+
+**第一步（开场）**：先说"文件组织随项目规模演变"——小项目按类型（components/hooks/api）→ 中项目按功能（Feature-Sliced Design）→ 大项目 Monorepo（Turborepo/Nx）
+**第二步（核心）**：FSD 六层架构（app/pages/widgets/features/entities/shared）；依赖只能从上往下，不能反向；Barrel Exports 反模式（不用 index.ts 重导出）
+**第三步（深挖）**：Turborepo 缓存加速（远程缓存 Vercel Remote Cache）；ESLint 模块边界规则（no-restricted-imports 约束层级依赖）；Changesets 管理共享包版本
+**差异化得分点**：能说出 Barrel Export 反模式的危害（工具链难以 Tree Shaking；IDE 引用查找变慢）
+
+---
+
+## 架构图：Feature-Sliced Design 六层依赖关系
+
+```mermaid
+graph TD
+    App[app 应用初始化/路由/Provider] -->|依赖| Pages
+    Pages[pages 页面组合层] -->|依赖| Widgets
+    Widgets[widgets 独立 UI 块 Header/Sidebar] -->|依赖| Features
+    Features[features 用户功能 auth/cart/search] -->|依赖| Entities
+    Entities[entities 业务实体 User/Product/Order] -->|依赖| Shared
+    Shared[shared 通用 UI/工具/配置]
+
+    style App fill:#ff6b6b,color:#fff
+    style Pages fill:#ffa94d,color:#fff
+    style Widgets fill:#ffd43b,color:#000
+    style Features fill:#69db7c,color:#000
+    style Entities fill:#4dabf7,color:#000
+    style Shared fill:#da77f2,color:#000
+
+    note1[依赖方向 只能从上往下 不能反向]
+```
+
+---
+
 ## 文件组织的演变
 
 ### 阶段 1：按类型分组（小项目）

@@ -5,6 +5,40 @@
 
 ---
 
+## 设计思路（面试开场白）
+
+"这是观察者模式（Observer Pattern）的经典实现。核心数据结构是一个 Map，key 是事件名，value 是监听器数组。
+首先确认 API 需求——是否需要 once（只触发一次）？是否需要 maxListeners 内存泄漏防护？emit 时 listener 报错是否应该隔离？
+核心实现四步：on 往数组 push、off 用 filter 移除、emit 遍历调用、once 用包装器实现（包装器执行后自动 off）。"
+
+---
+
+## 类图
+
+```mermaid
+classDiagram
+    class EventEmitter {
+        -_events: Map~string, Listener[]~
+        -_maxListeners: number
+        +on(event: string, listener: Listener) EventEmitter
+        +off(event: string, listener: Listener) EventEmitter
+        +emit(event: string, args: unknown[]) boolean
+        +once(event: string, listener: Listener) EventEmitter
+        +removeAllListeners(event?: string) EventEmitter
+        +listenerCount(event: string) number
+        +eventNames() string[]
+    }
+
+    class OnceWrapper {
+        +_original: Listener
+        +call(args: unknown[]) void
+    }
+
+    EventEmitter --> OnceWrapper : 创建 once 包装器
+```
+
+---
+
 ## 需求分析（面试时先问清楚）
 
 ```

@@ -5,6 +5,83 @@
 
 ---
 
+## 设计思路（面试开场白）
+
+"拖拽系统的核心是状态机——idle → dragging → 提交/取消，其他所有逻辑都从这个状态机派生。
+先澄清需求：只支持鼠标还是要键盘可访问性（a11y）？跨容器拖拽还是同列表排序？
+关键数据：被拖元素 ID、起始位置、当前指针位置、目标元素 ID。
+碰撞检测选最近中心点策略（遍历所有目标，找中心点距离最近的）或矩形重叠策略（选重叠面积最大的）。
+实现分层：Sensor 感知指针/键盘事件 → DragContext 维护状态 → Collision 计算碰撞 → Sortable 响应排序变化。"
+
+---
+
+## 状态机图
+
+```mermaid
+stateDiagram-v2
+    [*] --> Idle
+    Idle --> Dragging: pointerdown + 移动超过阈值 5px
+    Idle --> KeyboardDragging: Space 键激活
+    Dragging --> Idle: pointerup 提交放置
+    Dragging --> Idle: Escape 取消 回到原位
+    KeyboardDragging --> Idle: Space 确认放置
+    KeyboardDragging --> Idle: Escape 取消
+    KeyboardDragging --> KeyboardDragging: 方向键 移动到目标
+    Dragging --> Dragging: pointermove 更新位置 + 碰撞检测
+```
+
+---
+
+## 类图
+
+```mermaid
+classDiagram
+    class DragContext {
+        +activeId: string | null
+        +overId: string | null
+        +transform: Point
+        +isDragging: boolean
+        +startDrag(id: string, point: Point) void
+        +moveDrag(point: Point) void
+        +endDrag() void
+        +cancelDrag() void
+    }
+
+    class Sensor {
+        <<interface>>
+        +attach(el: Element) void
+        +detach() void
+    }
+
+    class PointerSensor {
+        -threshold: number
+        +attach(el: Element) void
+    }
+
+    class KeyboardSensor {
+        +attach(el: Element) void
+    }
+
+    class CollisionDetector {
+        +closestCenter(active: Rect, targets: Rect[]) string
+        +rectIntersection(active: Rect, targets: Rect[]) string
+    }
+
+    class Sortable {
+        +items: string[]
+        +onDragEnd(activeId, overId) void
+        -arrayMove(arr, from, to) string[]
+    }
+
+    DragContext --> Sensor : 事件驱动
+    PointerSensor ..|> Sensor
+    KeyboardSensor ..|> Sensor
+    DragContext --> CollisionDetector : 碰撞计算
+    DragContext --> Sortable : 排序更新
+```
+
+---
+
 ## 需求分析
 
 ```

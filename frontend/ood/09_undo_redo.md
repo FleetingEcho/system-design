@@ -5,6 +5,92 @@
 
 ---
 
+## 设计思路（面试开场白）
+
+"Undo/Redo 有两种实现思路：State Snapshot（存每次操作后的完整状态，简单但内存大）和 Command 模式（存可逆命令对象，高效但需要为每种操作实现 execute/undo 对）。
+面试推荐 Command 模式，因为更真实（Google Docs 也是这样做的）。
+核心数据结构：两个栈——undoStack（已执行命令，Ctrl+Z 时 pop 并调 undo()）和 redoStack（已撤销命令，Ctrl+Y 时 pop 并调 redo()）。
+关键细节：每次 execute 新命令时清空 redoStack（执行了新操作就不能再 Redo 旧的）；连续输入字符可以合并（mergeWith 方法）避免每个字母都是一步 undo；宏命令（CompositeCommand）支持批量操作作为一个 undo 步骤。"
+
+---
+
+## 类图
+
+```mermaid
+classDiagram
+    class Command {
+        <<interface>>
+        +description: string
+        +execute() void
+        +undo() void
+        +redo() void
+        +mergeWith(other: Command) boolean
+    }
+
+    class HistoryManager {
+        -undoStack: Command[]
+        -redoStack: Command[]
+        -maxHistory: number
+        +execute(cmd: Command) void
+        +undo() void
+        +redo() void
+        +canUndo() boolean
+        +canRedo() boolean
+        +clear() void
+        +getUndoDescription() string
+        +getRedoDescription() string
+    }
+
+    class InsertTextCommand {
+        -doc: Document
+        -text: string
+        -position: number
+        +execute() void
+        +undo() void
+        +mergeWith(other) boolean
+    }
+
+    class DeleteCommand {
+        -doc: Document
+        -position: number
+        -deletedText: string
+        +execute() void
+        +undo() void
+    }
+
+    class CompositeCommand {
+        -commands: Command[]
+        +add(cmd: Command) void
+        +execute() void
+        +undo() void
+    }
+
+    HistoryManager --> Command : 管理命令栈
+    InsertTextCommand ..|> Command
+    DeleteCommand ..|> Command
+    CompositeCommand ..|> Command
+    CompositeCommand --> Command : 聚合子命令
+```
+
+---
+
+## 状态机图：HistoryManager 状态
+
+```mermaid
+stateDiagram-v2
+    [*] --> Empty: 初始
+    Empty --> HasUndo: execute(command)
+    HasUndo --> HasUndo: execute 清空 redoStack
+    HasUndo --> HasBoth: undo() 移入 redoStack
+    HasBoth --> HasUndo: execute 清空 redoStack
+    HasBoth --> HasBoth: undo 或 redo
+    HasBoth --> HasRedo: 全部 undo
+    HasRedo --> HasBoth: redo()
+    HasUndo --> Empty: clear()
+```
+
+---
+
 ## 两种实现思路对比
 
 ```

@@ -5,6 +5,63 @@
 
 ---
 
+## 面试框架（45分钟怎么答）
+
+**第一步（开场）**：先做状态分类——服务端状态（来自 API、需要同步）vs 客户端状态（本地 UI 状态），这是整个回答的核心框架
+**第二步（核心）**：TanStack Query（staleTime/gcTime/乐观更新/失效策略）+ Zustand（无 Provider、精确订阅）
+**第三步（深挖）**：乐观更新三步骤（onMutate 保存旧值 → UI 立即更新 → onError 回滚）；SSR 集成（dehydrate/HydrationBoundary）；Context API 为何不适合高频更新
+**差异化得分点**：主动说"把服务端状态放进 Redux 是最常见错误"，然后说如何判断（刷新后从服务端重取 → 服务端状态）
+
+---
+
+## 架构图：状态分层模型
+
+```mermaid
+graph TD
+    subgraph ServerState["服务端状态（Server State）"]
+        TQ[TanStack Query]
+        TQ --> TQ1[useQuery 自动缓存/后台刷新]
+        TQ --> TQ2[useMutation + 乐观更新]
+        TQ --> TQ3[invalidateQueries 缓存失效]
+        SWR[SWR 极简替代]
+    end
+
+    subgraph ClientState["客户端状态（Client State）"]
+        Z[Zustand]
+        Z --> Z1[无Provider 精确订阅]
+        Z --> Z2[devtools + persist 中间件]
+        J[Jotai 原子化细粒度]
+        RTK[Redux Toolkit 已有项目]
+    end
+
+    subgraph FormState["表单状态"]
+        RHF[React Hook Form]
+        RHF --> Zod[Zod Schema 运行时校验]
+    end
+
+    App[应用组件] --> ServerState
+    App --> ClientState
+    App --> FormState
+```
+
+---
+
+## 决策树：状态方案选型
+
+```mermaid
+flowchart TD
+    A{状态来自 API?} -->|是| B[TanStack Query 或 SWR]
+    A -->|否 纯客户端| C{复杂度?}
+    B --> B1{需要复杂 Mutation / 乐观更新?}
+    B1 -->|是| TQ[TanStack Query]
+    B1 -->|否 简单数据获取| SWR[SWR ~4KB]
+    C -->|全局 购物车/用户/UI| Zustand[Zustand]
+    C -->|细粒度 表格行/复杂表单| Jotai[Jotai]
+    C -->|已有大型代码库| RTK[Redux Toolkit]
+```
+
+---
+
 ## 状态分类
 
 ```

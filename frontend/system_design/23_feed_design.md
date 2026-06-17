@@ -4,6 +4,48 @@
 
 ---
 
+## 面试框架（45分钟怎么答）
+
+**第一步（开场，5 min）**：澄清需求——DAU？纯文字还是图片/视频？实时推送的延迟要求（秒级还是准实时）？离线支持？
+**第二步（架构，10 min）**：四大技术挑战——虚拟滚动（10 万条不卡）/ 无限滚动（IntersectionObserver）/ 实时新帖（SSE）/ 乐观更新（点赞回滚）
+**第三步（深挖，20 min）**：cursor 分页（而非 offset，避免翻页时重复/漏数据）；动态高度虚拟列表；乐观更新三步骤（本地更新 → 服务端确认 → 失败回滚）
+**差异化得分点**：提出 "新帖通知" 而非直接插入（避免打断用户阅读）；说出 SSE vs WebSocket 的选择理由（Feed 是服务端推，单向，SSE 够用且更简单）
+
+---
+
+## 架构图：Feed 前端系统设计
+
+```mermaid
+graph TD
+    subgraph DataLayer["数据层"]
+        API[TanStack Query useInfiniteQuery]
+        API -->|cursor 分页| Server[API 服务器]
+        SSE[SSE 连接 新帖推送] --> NewBadge[显示 查看N条新帖]
+    end
+
+    subgraph RenderLayer["渲染层"]
+        Virtual[TanStack Virtual 虚拟列表]
+        IO[IntersectionObserver 滚动底部]
+        IO -->|触发| API
+        Virtual -->|只渲染| DOM[视口内 ~20 个 DOM]
+    end
+
+    subgraph InteractionLayer["交互层"]
+        Like[点赞操作]
+        Like -->|立即| Optimistic[乐观更新 likeCount+1]
+        Optimistic -->|服务端确认| Confirmed[最终状态]
+        Optimistic -->|服务端失败| Rollback[回滚 likeCount-1 + Toast]
+    end
+
+    subgraph ScrollLayer["滚动优化"]
+        Pull[下拉刷新]
+        Pull -->|refetch| API
+        Anchor[scroll-anchor 保持位置]
+    end
+```
+
+---
+
 ## 需求理解（先问）
 
 ```

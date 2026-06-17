@@ -5,6 +5,51 @@
 
 ---
 
+## 面试框架（45分钟怎么答）
+
+**第一步（开场）**：先说清 Design System 的三层价值——统一视觉语言（Design Token）+ 复用组件（减少 Bug）+ 工程基础设施（Storybook/Changesets）
+**第二步（核心）**：Design Token 三层模型（Primitive → Semantic → Component）；Radix UI 无障碍原语 + shadcn/ui 实现层；CSS Variables 主题切换
+**第三步（深挖）**：Changesets 语义化版本管理（patch/minor/major）；Storybook 视觉回归测试（Chromatic）；如何让消费方平滑升级（migration guide + codemods）
+**差异化得分点**：提出 Token 命名规范（不用 blue-500，用 color-primary-default）；能解释 Radix UI 如何解决键盘导航和 ARIA 问题
+
+---
+
+## 架构图：Design System 三层模型
+
+```mermaid
+graph TD
+    subgraph Layer1["第一层：Primitive Tokens 原始值"]
+        P1[color-blue-500: #3b82f6]
+        P2[spacing-4: 16px]
+        P3[font-size-base: 16px]
+        P4[radius-md: 6px]
+    end
+
+    subgraph Layer2["第二层：Semantic Tokens 语义值"]
+        S1[color-primary-default → color-blue-500]
+        S2[color-text-secondary → color-gray-600]
+        S3[spacing-component-padding → spacing-4]
+    end
+
+    subgraph Layer3["第三层：Component Tokens 组件值"]
+        C1[button-bg-primary → color-primary-default]
+        C2[button-radius → radius-md]
+        C3[input-border-color → color-border-default]
+    end
+
+    subgraph Output["产物"]
+        CSS[CSS Variables :root{}]
+        SD[Style Dictionary JSON → CSS / iOS / Android]
+        Storybook[Storybook 组件文档]
+    end
+
+    Layer1 --> Layer2
+    Layer2 --> Layer3
+    Layer3 --> Output
+```
+
+---
+
 ## 为什么需要 Design System
 
 ### 没有 Design System 的问题

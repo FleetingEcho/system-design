@@ -5,6 +5,82 @@
 
 ---
 
+## 设计思路（面试开场白）
+
+"虚拟列表的核心思想：不管列表有多长，任何时刻只渲染视口内的 ~20 个 DOM 节点，用一个空占位元素（totalHeight）撑起完整的滚动条。
+固定高度实现最简单：startIndex = Math.floor(scrollTop / itemHeight)；endIndex = startIndex + Math.ceil(viewportHeight / itemHeight) + overscan。
+动态高度的难点：无法预计算 totalHeight 和每个 item 的偏移量。解法是测量已渲染节点的真实高度（ResizeObserver 或 measureElement 回调）并缓存到 heightMap，未渲染节点用 estimatedHeight 估算。
+关键性能点：onScroll 用 rAF 节流；DOM 节点用 absolute + top 定位（避免 Reflow）；overscan 减少滚动白屏。"
+
+---
+
+## 架构图：虚拟列表窗口化原理
+
+```mermaid
+graph TD
+    subgraph Container["滚动容器 固定高度 overflow:auto"]
+        Placeholder["占位 div height=totalHeight 撑开滚动条"]
+        subgraph Visible["可视窗口"]
+            Item1[item startIndex position:absolute top=offset1]
+            Item2[item startIndex+1]
+            ItemN[item endIndex]
+        end
+    end
+
+    subgraph Calc["计算逻辑"]
+        Scroll[onScroll 获取 scrollTop]
+        Scroll --> Start["startIndex = floor scrollTop / itemHeight"]
+        Start --> End["endIndex = startIndex + ceil viewport / itemHeight + overscan"]
+        End --> Render[只渲染 startIndex~endIndex 的节点]
+    end
+
+    subgraph DynamicHeight["动态高度额外处理"]
+        RO[ResizeObserver 测量真实高度]
+        HeightMap[heightMap: Map~index, height~ 缓存]
+        RO --> HeightMap
+        HeightMap --> BinarySearch[二分查找 startIndex]
+    end
+```
+
+---
+
+## 类图
+
+```mermaid
+classDiagram
+    class VirtualList {
+        +items: T[]
+        +itemHeight: number | EstimateFunction
+        +overscan: number
+        -scrollTop: number
+        -heightMap: Map~number, number~
+        -totalHeight: number
+        +getVirtualItems() VirtualItem[]
+        +getTotalSize() number
+        +scrollToIndex(index: number) void
+        -calculateRange() Range
+        -measureElement(el: Element, index: number) void
+    }
+
+    class VirtualItem {
+        +index: number
+        +start: number 偏移量
+        +size: number
+        +lane: number
+    }
+
+    class ScrollManager {
+        -rafId: number
+        +onScroll(e: Event) void
+        -scheduleUpdate() void
+    }
+
+    VirtualList --> VirtualItem : 生成
+    VirtualList --> ScrollManager : 使用
+```
+
+---
+
 ## 为什么需要虚拟列表
 
 ```

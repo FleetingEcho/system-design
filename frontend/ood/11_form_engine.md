@@ -5,6 +5,74 @@
 
 ---
 
+## 设计思路（面试开场白）
+
+"表单引擎的核心是字段注册 + 验证管道 + 状态收集。
+先说三个状态层次：字段状态（value/error/touched/dirty）、表单状态（isValid/isSubmitting/isDirty）、提交状态。
+验证管道：每个字段有 rules 数组（required/minLength/pattern/自定义 validate），按顺序执行，遇到第一个失败就停止（fail-fast），异步规则用 await 串行。
+关键设计决策：非受控组件（ref 直接读 DOM 值，不触发 React re-render）比受控组件（useState 每次输入都 re-render）性能好 10x——React Hook Form 之所以快就是这个原因。
+联动验证（confirm password）：watch() 订阅其他字段变化，在自身 validate 里读 watched 值做比较。"
+
+---
+
+## 类图
+
+```mermaid
+classDiagram
+    class FormEngine {
+        -fields: Map~string, FieldController~
+        -formState: FormState
+        +register(name: string, rules: ValidationRules) FieldProps
+        +handleSubmit(onValid, onInvalid) EventHandler
+        +watch(name: string) any
+        +setValue(name, value) void
+        +getValues() FormValues
+        +reset(values?) void
+        +trigger(name?) Promise~boolean~
+    }
+
+    class FieldController {
+        +name: string
+        +rules: ValidationRules
+        +ref: RefObject~HTMLElement~
+        -state: FieldState
+        +validate(value, formValues) Promise~string | undefined~
+        +onChange(e: Event) void
+        +onBlur(e: Event) void
+    }
+
+    class FieldState {
+        +value: unknown
+        +error?: string
+        +touched: boolean
+        +dirty: boolean
+        +isValidating: boolean
+    }
+
+    class FormState {
+        +isValid: boolean
+        +isSubmitting: boolean
+        +isDirty: boolean
+        +submitCount: number
+        +errors: Record~string, string~
+    }
+
+    class ValidationRules {
+        +required?: boolean | string
+        +minLength?: MinLengthRule
+        +maxLength?: MaxLengthRule
+        +pattern?: PatternRule
+        +validate?: ValidateFn | Record~string, ValidateFn~
+    }
+
+    FormEngine --> FieldController : 管理字段
+    FormEngine --> FormState : 维护表单状态
+    FieldController --> FieldState : 维护字段状态
+    FieldController --> ValidationRules : 执行验证
+```
+
+---
+
 ## 需求分析
 
 ```

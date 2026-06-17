@@ -5,6 +5,47 @@
 
 ---
 
+## 面试框架（45分钟怎么答）
+
+**第一步（开场）**：先说"优化前先测量"——Lighthouse 看 LCP/TBT/CLS，Bundle Analyzer 找大包，PerformanceObserver 采集 INP
+**第二步（核心）**：代码分割（路由级 lazy + Suspense）→ Bundle 优化（Tree Shaking + 替代轻量库）→ 运行时（memo/useCallback + 虚拟滚动）
+**第三步（深挖）**：虚拟滚动原理（只渲染视口内 ~60 个 DOM）；Web Worker 卸载 CPU 密集型任务；React Compiler 自动 memo
+**差异化得分点**：能说出 "useMemo 什么时候不该用"（memo 本身有对比开销，React Compiler 时代大多数情况不再需要手动）
+
+---
+
+## 架构图：性能优化层次
+
+```mermaid
+graph TD
+    subgraph Load["加载性能（网络 + 解析）"]
+        L1[代码分割 路由级 lazy]
+        L2[Tree Shaking ES Module]
+        L3[图片 WebP/AVIF + srcset]
+        L4[preload 关键资源 LCP 图片/字体]
+        L5[CDN + 长缓存 content hash]
+    end
+
+    subgraph Runtime["运行时性能（JS 执行）"]
+        R1[React.memo + useCallback 减少重渲染]
+        R2[虚拟滚动 TanStack Virtual]
+        R3[Web Worker CPU 密集型卸载]
+        R4[requestIdleCallback 低优先级任务]
+    end
+
+    subgraph Measure["测量工具"]
+        M1[Lighthouse CI LCP/TBT/CLS]
+        M2[webpack-bundle-analyzer 包分析]
+        M3[web-vitals INP 采集]
+        M4[size-limit CI 体积卡点]
+    end
+
+    Measure -->|发现问题| Load
+    Measure --> Runtime
+```
+
+---
+
 ## 性能指标回顾
 
 优化前先明确目标指标（见 [04_frontend_monitoring.md](04_frontend_monitoring.md)）：

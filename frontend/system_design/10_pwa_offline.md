@@ -5,6 +5,58 @@
 
 ---
 
+## 面试框架（45分钟怎么答）
+
+**第一步（开场）**：澄清离线需求——完全离线（内容先缓存）还是弱网优化（SWR 策略缓存 API）？用户群体（移动优先？新兴市场？）
+**第二步（核心）**：Service Worker 五大缓存策略（Cache First / Network First / SWR / Cache Only / Network Only）+ 各自适用场景
+**第三步（深挖）**：SW 生命周期（install → activate → fetch）；版本更新的 skipWaiting 策略；Background Sync 离线操作队列；IndexedDB（Dexie.js）持久化
+**差异化得分点**：能说出 SW 更新导致的"白屏"问题及解法（showUpdatePrompt 通知用户刷新）；Workbox 的 precaching 和 runtime caching 分工
+
+---
+
+## 架构图：Service Worker 拦截层
+
+```mermaid
+graph TD
+    subgraph Browser["浏览器"]
+        App[Web App]
+        SW[Service Worker 拦截层]
+        Cache[Cache API]
+        IDB[IndexedDB Dexie.js]
+    end
+
+    subgraph Network["网络"]
+        CDN[CDN 静态资源]
+        API[API 服务器]
+    end
+
+    App -->|fetch 请求| SW
+    SW -->|Cache First 静态资源| Cache
+    SW -->|Network First API数据| API
+    SW -->|离线| Cache
+    API -->|成功| Cache
+    App <-->|持久化数据| IDB
+    SW -->|Background Sync 离线队列| IDB
+    IDB -->|网络恢复| API
+```
+
+---
+
+## 决策树：缓存策略选型
+
+```mermaid
+flowchart TD
+    A{资源类型?} -->|JS/CSS/字体 有hash| B[Cache First 永久缓存]
+    A -->|HTML 页面壳| C[Network First 离线降级]
+    A -->|API 数据| D{实时性要求?}
+    D -->|高 股票/消息| E[Network First 超时降级缓存]
+    D -->|中 商品列表| F[Stale-While-Revalidate]
+    D -->|低 用户配置| G[Cache First 后台更新]
+    A -->|图片| H[Cache First + 过期策略 maxEntries:50]
+```
+
+---
+
 ## PWA 能力全景
 
 ```

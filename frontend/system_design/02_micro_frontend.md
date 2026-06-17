@@ -4,6 +4,67 @@
 
 ---
 
+## 面试框架（45分钟怎么答）
+
+**第一步（开场）**：主动说"这是组织问题，不只是技术问题"——澄清团队规模、部署频率、技术栈迁移需求
+**第二步（核心）**：重点讲 Module Federation——Host/Remote/Shared 三要素；singleton:true 防双 React 实例
+**第三步（深挖）**：路由治理（Shell 一级路由 + 子应用 MemoryRouter）；样式隔离（CSS Modules + 前缀）；故障隔离（ErrorBoundary 独立包裹）
+**差异化得分点**：主动提 "什么时候不该用微前端"（团队 < 10人、业务耦合紧密），体现工程判断力
+
+---
+
+## 架构图：Module Federation 运行时
+
+```mermaid
+graph TD
+    subgraph Shell["Shell 容器应用（Host）"]
+        R[React Router 一级路由]
+        R -->|/product/*| P[lazy import product/ProductPage]
+        R -->|/cart/*| C[lazy import cart/CartPage]
+        R -->|/order/*| O[lazy import order/OrderPage]
+    end
+
+    subgraph CDN["CDN 分发层"]
+        PE[product/remoteEntry.js]
+        CE[cart/remoteEntry.js]
+        OE[order/remoteEntry.js]
+        Shared[shared: react react-dom singleton:true]
+    end
+
+    P -->|运行时动态加载| PE
+    C --> CE
+    O --> OE
+
+    subgraph Teams["独立 CI/CD 流水线"]
+        T1[商品团队 独立构建/部署]
+        T2[购物车团队 独立构建/部署]
+        T3[订单团队 独立构建/部署]
+    end
+
+    T1 --> PE
+    T2 --> CE
+    T3 --> OE
+```
+
+---
+
+## 决策树：微前端方案选型
+
+```mermaid
+flowchart TD
+    A{完全隔离 含Cookie/CSS?} -->|是| B[iframe 代价: 体验差]
+    A -->|否| C{框架统一?}
+    C -->|是 React生态| D[Module Federation Webpack5]
+    C -->|否 多框架| E{渐进迁移?}
+    E -->|是| F[Web Components 框架无关]
+    E -->|否| G[Single-SPA 路由级注册]
+    D --> H{Vite构建?}
+    H -->|是| I[Native Federation vite-plugin-federation]
+    H -->|否| D
+```
+
+---
+
 ## 为什么需要微前端
 
 ### 巨石前端（Monolith Frontend）的痛点

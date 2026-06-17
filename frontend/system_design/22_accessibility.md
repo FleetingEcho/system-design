@@ -5,6 +5,53 @@
 
 ---
 
+## 面试框架（45分钟怎么答）
+
+**第一步（开场）**：说清 WCAG 2.1 四大原则 POUR（可感知/可操作/可理解/健壮），AA 级是大多数公司基线；提出法规风险（美国 ADA，欧盟 EAA）
+**第二步（核心）**：语义化 HTML 优先（`<button>` 而非 `<div onclick>`）；ARIA 补充语义（role/aria-label/aria-expanded）；焦点管理（Dialog 打开时 focus 到第一个可交互元素，关闭时 focus 返回触发元素）
+**第三步（深挖）**：颜色对比度（正文 4.5:1，大文字 3:1）；键盘陷阱（Modal 内 Tab 循环）；axe-core 自动检测；Radix UI 内置无障碍（省去手写 ARIA 的成本）
+**差异化得分点**：提出 "can I DevTools" 检查 accessibility tree；说出 `aria-live` 用于动态内容通知（如 Toast 消息、加载完成提示）
+
+---
+
+## 架构图：a11y 技术实现层次
+
+```mermaid
+graph TD
+    subgraph Foundation["基础层（必须做）"]
+        HTML[语义化 HTML button/nav/main/h1-h6]
+        Alt[img alt 文字描述]
+        Label[form label 关联 input]
+        Focus[可见焦点指示器 :focus-visible]
+    end
+
+    subgraph ARIA["ARIA 补充层（原生不够时）"]
+        Role[role=dialog/menu/tablist]
+        State[aria-expanded/aria-checked/aria-selected]
+        Live[aria-live=polite 动态内容通知 Toast]
+        Labelby[aria-labelledby/aria-describedby]
+    end
+
+    subgraph KeyboardNav["键盘导航层"]
+        Tab[Tab 键顺序 tabIndex]
+        Trap[焦点陷阱 Modal 内 Tab 循环]
+        Escape[Esc 关闭弹窗]
+        Restore[关闭后焦点恢复到触发元素]
+    end
+
+    subgraph Testing["测试层"]
+        Axe[axe-core 自动检测 CI 门控]
+        SR[手动屏幕阅读器测试 VoiceOver/NVDA]
+        Contrast[颜色对比度检查 正文 4.5:1]
+    end
+
+    Foundation --> ARIA
+    ARIA --> KeyboardNav
+    KeyboardNav --> Testing
+```
+
+---
+
 ## 为什么 a11y 在面试中重要
 
 ```

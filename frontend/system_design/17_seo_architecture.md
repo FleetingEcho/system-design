@@ -5,6 +5,45 @@
 
 ---
 
+## 面试框架（45分钟怎么答）
+
+**第一步（开场）**：澄清场景——内容站 / 电商 / SaaS 落地页？SEO 重要性多高？有多少页面需要索引（影响 Sitemap 策略）？
+**第二步（核心）**：SSR/SSG 确保爬虫看到完整内容；Meta 标签（title/description/OG/Twitter Card）；JSON-LD 结构化数据（Product/Article/BreadcrumbList）
+**第三步（深挖）**：动态 OG 图片（Next.js ImageResponse 用 Satori 服务端渲染 JSX 为图片）；Sitemap 自动生成（动态路由 + lastmod 时间戳）；Canonical URL 防重复内容惩罚
+**差异化得分点**：Core Web Vitals 是 Google 排名因素之一（LCP/INP/CLS）；提出 `hreflang` 标签用于多语言站点告诉 Google 各语言版本关系
+
+---
+
+## 架构图：SEO 技术栈
+
+```mermaid
+graph TD
+    subgraph GoogleBot["Googlebot 爬取流程"]
+        Crawl[发现 URL Sitemap/链接] --> Render[执行 JS SSR更快被索引]
+        Render --> Index[提取 title/meta/JSON-LD]
+        Index --> Rank[综合评分 相关性+权威性+CWV]
+    end
+
+    subgraph NextJS["Next.js SEO 实现"]
+        Meta[generateMetadata 动态 Meta 标签]
+        JSONLD[JSON-LD 结构化数据 Product/Article]
+        OGImage[og/image 动态 OG 图片 Satori]
+        Sitemap[sitemap.xml 自动生成]
+        Canonical[canonical URL 防重复内容]
+    end
+
+    subgraph CoreWebVitals["Core Web Vitals 排名因素"]
+        LCP[LCP < 2.5s]
+        INP[INP < 200ms]
+        CLS[CLS < 0.1]
+    end
+
+    NextJS --> GoogleBot
+    CoreWebVitals --> Rank
+```
+
+---
+
 ## SEO 基础：搜索引擎如何工作
 
 ```

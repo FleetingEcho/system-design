@@ -2,6 +2,56 @@
 
 ---
 
+## 面试框架（45分钟怎么答）
+
+**第一步（开场）**：澄清场景——内容更新频率？SEO 重要性？个性化程度？服务端预算？
+**第二步（核心）**：用决策树对比四种渲染模式，说清楚 ISR 的 Stale-While-Revalidate 机制
+**第三步（深挖）**：重点讲 CDN 分层缓存、缓存雪崩防御（随机抖动）、On-demand ISR 一致性
+**差异化得分点**：提出 Partial Prerendering（静态壳 + 动态流式填充）；能量化 CDN 命中率 > 95% 对 TTFB 的影响
+
+---
+
+## 架构图：渲染模式数据流对比
+
+```mermaid
+graph LR
+    subgraph CSR["CSR（客户端渲染）"]
+        C1[用户请求] --> C2[空 HTML + JS]
+        C2 --> C3[浏览器执行 JS]
+        C3 --> C4[API 请求]
+        C4 --> C5[内容可见 FCP 慢]
+    end
+
+    subgraph SSR["SSR（服务端渲染）"]
+        S1[用户请求] --> S2[Node.js 服务器]
+        S2 --> S3[并行查 DB/API]
+        S3 --> S4[renderToPipeableStream]
+        S4 --> S5[完整 HTML FCP 快]
+    end
+
+    subgraph ISR["ISR（增量静态再生）"]
+        I1[用户请求] --> I2{CDN 缓存?}
+        I2 -->|命中| I3[返回旧页面 毫秒级]
+        I2 -->|过期| I4[返回旧页面 + 后台重生成]
+        I4 --> I5[更新 CDN 缓存]
+    end
+```
+
+---
+
+## 决策树：选哪种渲染模式？
+
+```mermaid
+flowchart TD
+    A{内容变更频率?} -->|从不变| B[SSG 博客/法律文件]
+    A -->|偶尔变 分钟~小时级| C[ISR + On-demand revalidate 电商/新闻]
+    A -->|实时变 秒级| D{个性化?}
+    D -->|否| E[SSR 股票/直播]
+    D -->|是每用户不同| F[SSR 或 SSG + Client fetch]
+```
+
+---
+
 ## 四种渲染模式对比
 
 | 模式 | 全称 | HTML 生成时机 | 典型场景 |

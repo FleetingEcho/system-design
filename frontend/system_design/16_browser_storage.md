@@ -4,6 +4,32 @@
 
 ---
 
+## 面试框架（45分钟怎么答）
+
+**第一步（开场）**：先说六种存储一句话总结——Cookie（认证 + 跨请求自动携带）/ LocalStorage（用户配置持久化）/ SessionStorage（单 Tab 临时数据）/ IndexedDB（大量结构化数据）/ Cache API（SW 离线资源）/ OPFS（大文件操作）
+**第二步（核心）**：给出各场景推荐——购物车用 LocalStorage（持久化 + 容量够）；用户认证 Token 用 HttpOnly Cookie（安全）；离线文件用 IndexedDB（Dexie.js 封装）
+**第三步（深挖）**：存储配额（LocalStorage 5-10MB 同步会阻塞主线程；IndexedDB 异步不阻塞）；OPFS 适合大文件的原因（直接读写 OS 文件系统，不序列化）；存储配额管理（navigator.storage.estimate()）
+**差异化得分点**：主动提 "LocalStorage 是同步 API，大量读写会阻塞主线程，2MB 以上的数据应该用 IndexedDB"
+
+---
+
+## 决策树：存储选型
+
+```mermaid
+flowchart TD
+    A{需要随 HTTP 请求自动携带?} -->|是 认证 Token| Cookie[HttpOnly Cookie]
+    A -->|否| B{数据大小?}
+    B -->|< 5MB| C{Tab 关闭后需要保留?}
+    C -->|是| LocalStorage[LocalStorage 用户配置/临时草稿]
+    C -->|否| SessionStorage[SessionStorage 多步表单]
+    B -->|> 5MB 结构化数据| D{Service Worker 需要访问?}
+    D -->|是 离线缓存| CacheAPI[Cache API 静态资源/API 响应]
+    D -->|否 应用数据| IndexedDB[IndexedDB + Dexie.js]
+    B -->|GB 级 大文件二进制| OPFS[OPFS 原始文件访问]
+```
+
+---
+
 ## 六种存储机制对比
 
 | 存储 | 容量 | 生命周期 | 同步/异步 | 可访问范围 | 跨 Tab | SW 访问 |

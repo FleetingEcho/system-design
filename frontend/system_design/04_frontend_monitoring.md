@@ -5,6 +5,48 @@
 
 ---
 
+## 面试框架（45分钟怎么答）
+
+**第一步（开场）**：先背三大 Core Web Vitals（LCP/INP/CLS + 阈值），然后说"后端 APM 看不到客户端网络和设备的影响，需要 RUM"
+**第二步（核心）**：SDK 设计（web-vitals 库 + Beacon API + 采样率）→ 数据接收层（Kafka 削峰）→ 存储（ClickHouse 列式）
+**第三步（深挖）**：P99 不能简单平均（t-Digest 近似算法）；环比异常检测（vs 过去7天同时段）；Beacon vs fetch 的区别
+**差异化得分点**：分层采样策略（JS 错误 100% 上报 + 性能数据 10% 采样）；按 connection 类型分组分析定位问题
+
+---
+
+## 架构图：RUM 数据管道
+
+```mermaid
+graph TD
+    subgraph Browser["用户浏览器"]
+        SDK[采集 SDK web-vitals < 5KB gzip]
+        SDK -->|批量 10s 或 20条| Beacon[Beacon API / fetch keepalive]
+    end
+
+    subgraph Ingest["数据接收层"]
+        HTTP[HTTP Ingest Service]
+        HTTP -->|验证 过滤 限速| Kafka[Kafka Topic: rum-events]
+    end
+
+    subgraph Processing["流处理层"]
+        Kafka --> Flink[Flink / Kafka Streams]
+        Flink -->|t-Digest 近似 P75/P95/P99| Agg[聚合指标 1min 窗口]
+    end
+
+    subgraph Storage["存储层"]
+        Agg --> CH[ClickHouse 列式时序]
+        Beacon --> HTTP
+    end
+
+    subgraph Alerting["告警层"]
+        CH --> Alert[环比异常检测 偏差>20%]
+        Alert -->|P0 < 5min| PD[PagerDuty]
+        CH --> Grafana[Grafana Dashboard]
+    end
+```
+
+---
+
 ## 为什么后端监控不够
 
 ```

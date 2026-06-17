@@ -4,6 +4,48 @@
 
 ---
 
+## 面试框架（45分钟怎么答）
+
+**第一步（开场，5 min）**：澄清——同时在线人数？离线编辑支持时长？富文本 vs 纯文本？操作历史（版本）需求？
+**第二步（架构，10 min）**：CRDT（Yjs）vs OT——说清"CRDT 不需要中央服务器仲裁，天然支持离线合并"；Yjs + ProseMirror/Tiptap 的组合
+**第三步（深挖，20 min）**：Awareness 协议（光标同步）；WebSocket 断线时本地操作存 IndexedDB，重连后批量同步；Undo/Redo 只撤销自己的操作（UndoManager per user）
+**差异化得分点**：能说出 OT 和 CRDT 的区别（OT 需要中央服务器转换操作，CRDT 合并是可交换的/结合律）；提出"存档版本"用 Y-leveldb 持久化 Yjs doc
+
+---
+
+## 架构图：协作编辑器技术架构
+
+```mermaid
+graph TD
+    subgraph Client["客户端"]
+        Editor[ProseMirror / Tiptap 编辑器]
+        YJS[Yjs CRDT 文档]
+        Awareness[Awareness 光标/在线状态]
+        IDB[IndexedDB 离线队列 y-indexeddb]
+    end
+
+    subgraph Transport["传输层"]
+        WS[WebSocket 连接]
+        WS -->|断线| Buffer[本地缓冲操作]
+        Buffer -->|重连| WS
+    end
+
+    subgraph Server["服务端"]
+        Hub[WebSocket Hub 广播更新]
+        YLevelDB[y-leveldb Yjs 持久化]
+    end
+
+    Editor <-->|双向绑定| YJS
+    YJS <-->|状态同步| Awareness
+    YJS -->|操作 delta| WS
+    WS --> Hub
+    Hub -->|广播| WS
+    Hub <--> YLevelDB
+    YJS <--> IDB
+```
+
+---
+
 ## 需求理解（先问）
 
 ```

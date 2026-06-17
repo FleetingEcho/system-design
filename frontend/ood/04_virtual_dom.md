@@ -5,6 +5,57 @@
 
 ---
 
+## 设计思路（面试开场白）
+
+"Virtual DOM 的价值不是'快'，而是'声明式'——用 JS 对象描述 UI，框架自动 diff 出最小变更。
+设计分四步：createElement 创建 VNode 数据结构（type/props/children/key）；render 把 VNode 变为真实 DOM；diff 对比新旧 VNode 树得出补丁；patch 把补丁应用到 DOM。
+关键优化：同层对比（O(n) 而非 O(n³)）；不同 type 直接替换（不 diff 子树）；有 key 时用 Map 匹配可复用节点（列表 Diff）。
+面试时要主动提：React Fiber 把 diff 拆成可中断的小任务，而非一次同步完成——这是 React 18 并发特性的基础。"
+
+---
+
+## 类图
+
+```mermaid
+classDiagram
+    class VNode {
+        +type: string | null
+        +props: Record~string, unknown~
+        +children: VNode | string[]
+        +key: string | null
+        +_el: Node 真实DOM引用
+    }
+
+    class Renderer {
+        +createElement(type, props, children) VNode
+        +render(vnode: VNode, container: Element) void
+        +mount(vnode: VNode) Node
+        -createDOMElement(vnode: VNode) Element
+        -mountProps(el, props) void
+    }
+
+    class Differ {
+        +diff(oldVNode: VNode, newVNode: VNode) Patch[]
+        -diffChildren(oldChildren, newChildren) Patch[]
+        -diffWithKey(oldChildren, newChildren) Patch[]
+    }
+
+    class Patcher {
+        +patch(patches: Patch[]) void
+        -replaceNode(old, new) void
+        -updateProps(el, oldProps, newProps) void
+        -insertNode(parent, node, ref) void
+        -removeNode(node) void
+    }
+
+    Renderer --> VNode : 创建
+    Differ --> VNode : 对比
+    Differ --> Patcher : 生成补丁
+    Patcher ..> DOM : 最小化更新
+```
+
+---
+
 ## 需求分析
 
 ```

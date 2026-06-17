@@ -5,6 +5,42 @@
 
 ---
 
+## 面试框架（45分钟怎么答）
+
+**第一步（开场）**：先说渲染流水线五步（JS → Style → Layout → Paint → Composite），重点是"触发 Layout 代价最高（Reflow）"
+**第二步（核心）**：只用 transform 和 opacity 做动画（只触发 Composite，不触发 Layout）；will-change 提升合成层；Layout Thrashing 及其防御（批量读 → 批量写）
+**第三步（深挖）**：CSS 动画 vs JS 动画（CSS 动画在合成线程运行，主线程阻塞也不卡）；FLIP 动画技巧（First→Last→Invert→Play）；Framer Motion 的 layout prop；rAF 做 JS 动画
+**差异化得分点**：能说出 will-change 的副作用（额外内存占用，不要滥用），以及何时移除它（动画结束后）
+
+---
+
+## 架构图：浏览器渲染流水线与触发层级
+
+```mermaid
+graph LR
+    subgraph Pipeline["渲染流水线"]
+        JS[JS 执行] --> Style[Style 样式计算]
+        Style --> Layout[Layout 布局计算 Reflow 最贵]
+        Layout --> Paint[Paint 绘制像素 Repaint]
+        Paint --> Composite[Composite 合成层叠加 最快]
+    end
+
+    subgraph Triggers["属性触发层级"]
+        T1["width/height/top/left → Layout+Paint+Composite"]
+        T2["background-color/box-shadow → Paint+Composite"]
+        T3["transform/opacity → Composite Only 目标"]
+    end
+
+    subgraph Tools["优化工具"]
+        WC[will-change: transform 提升合成层]
+        GPU[GPU 加速 translateZ 0]
+        RAF[requestAnimationFrame 每帧回调]
+        WAAPI[Web Animation API animate]
+    end
+```
+
+---
+
 ## 浏览器渲染流水线（关键知识）
 
 ```

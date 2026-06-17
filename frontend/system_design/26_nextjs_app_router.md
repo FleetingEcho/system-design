@@ -5,6 +5,48 @@
 
 ---
 
+## 面试框架（45分钟怎么答）
+
+**第一步（开场）**：说清 App Router 最大变化——默认 Server Component（零客户端 JS）；只有 `use client` 标注的才下发到浏览器；这和 Pages Router 的"客户端优先"是相反的
+**第二步（核心）**：RSC vs Client Component 边界决策；四层缓存（Request Memoization / Data Cache / Full Route Cache / Router Cache）的各自作用和失效方式；Server Actions 替代 API Route 的场景
+**第三步（深挖）**：Streaming + Suspense 分段输出 HTML（先送 Header 再等 API 数据）；PPR（Partial Prerendering）静态壳 + 动态孔洞；revalidateTag 跨路由精确缓存失效
+**差异化得分点**：能说出 "RSC 不能用 useState/useEffect/浏览器 API"；能画出组件树中 Server/Client 边界的决策（尽量把 `use client` 下推到叶节点）
+
+---
+
+## 架构图：App Router RSC 组件树边界
+
+```mermaid
+graph TD
+    subgraph ServerTree["服务端渲染 零JS"]
+        Layout[layout.tsx RSC 导航/认证]
+        Page[page.tsx RSC async/await 直接查DB]
+        DataComp[ProductDetails RSC 不出现在bundle]
+    end
+
+    subgraph ClientBoundary["use client 边界"]
+        Interactive[AddToCartButton use client]
+        Form[CheckoutForm use client]
+        Chart[AnalyticsChart use client]
+    end
+
+    subgraph Streaming["Streaming + Suspense"]
+        Shell[静态 Header + 骨架] -->|立即发送| Browser
+        Suspense1[Suspense: ProductDetails] -->|数据就绪| Browser
+        Suspense2[Suspense: Reviews] -->|独立加载| Browser
+    end
+
+    Layout --> Page
+    Page --> DataComp
+    DataComp --> Interactive
+    Page --> Form
+    Page --> Streaming
+
+    Browser[浏览器]
+```
+
+---
+
 ## Pages Router vs App Router 核心区别
 
 ```

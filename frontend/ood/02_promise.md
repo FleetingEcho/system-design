@@ -5,6 +5,60 @@
 
 ---
 
+## 设计思路（面试开场白）
+
+"Promise 的核心是一个状态机——三个状态（pending/fulfilled/rejected），单向流转，不可逆。
+关键难点有三个：
+一是 then 必须返回新 Promise（支持链式），且 onFulfilled/onRejected 要异步执行（用 queueMicrotask）；
+二是 resolve 传入 thenable（另一个 Promise）时要等待它完成；
+三是循环引用检测（then 的返回值不能是 then 自身返回的 Promise）。
+静态方法 Promise.all 注意：用计数器而非 Promise.all 本身，因为我们就是在实现它。"
+
+---
+
+## 状态机图
+
+```mermaid
+stateDiagram-v2
+    [*] --> pending: new Promise executor 执行
+    pending --> fulfilled: resolve(value) 调用
+    pending --> rejected: reject(reason) 调用 或 executor 抛异常
+    fulfilled --> [*]: 终态 不可再转换
+    rejected --> [*]: 终态 不可再转换
+
+    note right of pending
+        then 回调加入队列
+        等待状态转换后执行
+    end note
+```
+
+---
+
+## 类图
+
+```mermaid
+classDiagram
+    class MyPromise {
+        -state: pending | fulfilled | rejected
+        -value: T
+        -reason: unknown
+        -onFulfilledCallbacks: Function[]
+        -onRejectedCallbacks: Function[]
+        +constructor(executor: Function)
+        +then(onFulfilled?, onRejected?) MyPromise
+        +catch(onRejected) MyPromise
+        +finally(onFinally) MyPromise
+        +resolve(value)$ MyPromise
+        +reject(reason)$ MyPromise
+        +all(promises)$ MyPromise
+        +allSettled(promises)$ MyPromise
+        +race(promises)$ MyPromise
+        +any(promises)$ MyPromise
+    }
+```
+
+---
+
 ## 需求分析
 
 ```

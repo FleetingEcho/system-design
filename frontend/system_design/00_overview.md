@@ -5,6 +5,47 @@
 
 ---
 
+## 面试框架（45分钟怎么答）
+
+**第一步（5 min）需求澄清**：目标用户数/DAU？首屏性能目标？SEO 需求？团队规模和部署频率？
+**第二步（10 min）架构概览**：渲染策略选型（CSR/SSR/SSG/ISR）→ 数据获取方式 → 状态管理边界划分
+**第三步（20 min）核心难点深挖**：缓存策略 / 代码分割 / 跨团队隔离 / 监控与告警
+**第四步（10 min）差异化得分**：主动量化——CDN 命中率对 TTFB 的影响；Core Web Vitals 各指标目标值；Module Federation 如何防止 React 双实例
+
+---
+
+## 前端系统设计思维导图
+
+```mermaid
+graph TD
+    A[前端系统设计] --> B[加载性能]
+    A --> C[运行时性能]
+    A --> D[架构可维护性]
+    A --> E[安全]
+
+    B --> B1[渲染策略 SSR/SSG/ISR]
+    B --> B2[CDN 分发]
+    B --> B3[代码分割 + Tree Shaking]
+    B --> B4[图片/字体优化]
+
+    C --> C1[虚拟滚动]
+    C --> C2[Web Worker 卸载计算]
+    C --> C3[React memo/useMemo]
+    C --> C4[INP 优化]
+
+    D --> D1[微前端 Module Federation]
+    D --> D2[状态管理分层]
+    D --> D3[BFF / GraphQL / tRPC]
+    D --> D4[Design System]
+
+    E --> E1[XSS + CSP]
+    E --> E2[CSRF + SameSite]
+    E --> E3[HttpOnly Cookie vs JWT]
+    E --> E4[OAuth2 + PKCE]
+```
+
+---
+
 ## 为什么需要专门的前端系统设计
 
 后端系统设计关心：QPS、存储、一致性、容错。

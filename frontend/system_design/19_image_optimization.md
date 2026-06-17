@@ -5,6 +5,43 @@
 
 ---
 
+## 面试框架（45分钟怎么答）
+
+**第一步（开场）**：图片是 LCP 的主要影响因素，先说"三板斧"——格式现代化（WebP/AVIF）+ 响应式 srcset + 懒加载 LCP 图片除外
+**第二步（核心）**：Next/Image 自动处理（格式转换 + srcset + 懒加载 + CLS 防护 width/height）；CDN 图片变换（Cloudinary/Imgix URL 参数）；LCP 图片必须加 priority 和 preload
+**第三步（深挖）**：blur placeholder 防 CLS（先渲染低分辨率占位）；视频用 `<video autoplay muted loop>` 替代 GIF（体积小 10x）；AVIF 编码慢，CDN 按需转换比构建时转换更实用
+**差异化得分点**：说出 `fetchpriority="high"` 的作用（告诉浏览器优先下载 LCP 图片，Next/Image priority 属性会自动添加）
+
+---
+
+## 架构图：图片优化管道
+
+```mermaid
+graph LR
+    subgraph Upload["上传阶段"]
+        Orig[原始图片 JPEG/PNG]
+        Orig -->|客户端压缩| Compressed[Canvas resize 降分辨率]
+        Compressed --> S3[上传 S3 原图]
+    end
+
+    subgraph CDN["CDN 变换层 Cloudinary/Imgix"]
+        S3 --> Transform[按需变换 URL 参数]
+        Transform --> W400[400w WebP]
+        Transform --> W800[800w WebP]
+        Transform --> AVIF2[800w AVIF 最新浏览器]
+    end
+
+    subgraph Browser["浏览器端"]
+        Picture[picture 元素]
+        Picture -->|type=image/avif| AVIF2
+        Picture -->|type=image/webp| W800
+        Picture -->|img src 降级| W400
+        Picture -->|srcset sizes| Responsive[响应式加载]
+    end
+```
+
+---
+
 ## 图片格式选型
 
 | 格式 | 压缩 | 透明 | 动图 | 浏览器支持 | 适用场景 |

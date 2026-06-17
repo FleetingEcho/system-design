@@ -5,6 +5,47 @@
 
 ---
 
+## 面试框架（45分钟怎么答）
+
+**第一步（开场）**：区分 Feature Flag（发布控制）vs A/B 测试（效果验证），说清楚共用同一套分桶基础设施
+**第二步（核心）**：确定性 Hash 分桶（userId + flagKey → MurmurHash → 0~1 → 比较阈值，同一用户每次结果一致）；三层分流（Client / Server / Edge）及各自 FOUC 风险
+**第三步（深挖）**：FOUC（内容闪烁）防护——Server-side 分流才能彻底避免；A/B 测试统计显著性（p < 0.05 + 最小样本量）；GrowthBook vs LaunchDarkly 选型
+**差异化得分点**：提出 "Flag 的生命周期管理"——过期 Flag 必须清理，否则死代码积累（可配 lint 规则检测）
+
+---
+
+## 架构图：Feature Flag 分流系统
+
+```mermaid
+graph TD
+    subgraph EdgeLayer["Edge 层 最佳 无FOUC"]
+        Middleware[Next.js Middleware Edge Runtime]
+        Middleware -->|读取 Cookie userId| Hash[Hash 分桶]
+        Hash -->|bucket A| PageA[重写到 /page-a]
+        Hash -->|bucket B| PageB[重写到 /page-b]
+    end
+
+    subgraph ServerLayer["Server 层 次佳"]
+        RSC[Server Component]
+        RSC -->|userId 查 Flag| FlagSDK[GrowthBook SDK]
+        FlagSDK -->|flag.enabled| Cond{条件渲染}
+    end
+
+    subgraph ClientLayer["Client 层 有FOUC风险"]
+        CComp[Client Component]
+        CComp -->|useFeatureFlag| FOUC[初次渲染无Flag 闪烁]
+    end
+
+    subgraph FlagService["Flag 服务"]
+        GB[GrowthBook 开源]
+        LD[LaunchDarkly SaaS]
+    end
+
+    FlagSDK <--> FlagService
+```
+
+---
+
 ## Feature Flag vs A/B 测试
 
 ```

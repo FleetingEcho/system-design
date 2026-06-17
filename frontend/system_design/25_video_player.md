@@ -4,6 +4,47 @@
 
 ---
 
+## 面试框架（45分钟怎么答）
+
+**第一步（开场，5 min）**：澄清——最大视频时长/大小？需要 DRM 版权保护？字幕？移动端适配？首帧时间目标？
+**第二步（架构，10 min）**：为什么不用 `<video src="...">`——说清 HLS/DASH 自适应码率原理（分成 2-4s 的分片 + Manifest 描述各清晰度）
+**第三步（深挖，20 min）**：hls.js 接入流程；ABR 算法（基于当前带宽和缓冲健康度选择码率）；缓冲策略（预缓冲前 30s；网络差时降级）；续播位置存 localStorage
+**差异化得分点**：提出"首帧优化"——`<video preload="metadata">` 只加载头部 + hls.js 从最低码率开始（快速启动）；PiP（Picture in Picture API）实现
+
+---
+
+## 架构图：HLS 自适应码率播放
+
+```mermaid
+graph TD
+    subgraph CDN["CDN 分发"]
+        M3U8[master.m3u8 主 Manifest]
+        M3U8 --> V360[360p/playlist.m3u8]
+        M3U8 --> V720[720p/playlist.m3u8]
+        M3U8 --> V1080[1080p/playlist.m3u8]
+        V360 --> Seg360[.ts 分片 每片 2-4s]
+        V720 --> Seg720[.ts 分片]
+        V1080 --> Seg1080[.ts 分片]
+    end
+
+    subgraph PlayerLayer["播放器层"]
+        HLSJS[hls.js 解析 HLS]
+        ABR[ABR 引擎 带宽估算 + 缓冲健康度]
+        MSE[Media Source Extensions API]
+        Video[HTMLVideoElement]
+        UI[自定义播放器 UI 进度条/音量/全屏/字幕]
+    end
+
+    M3U8 --> HLSJS
+    HLSJS --> ABR
+    ABR -->|选择码率| Seg720
+    Seg720 --> MSE
+    MSE --> Video
+    Video --> UI
+```
+
+---
+
 ## 需求理解（先问）
 
 ```
