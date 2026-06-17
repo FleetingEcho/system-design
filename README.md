@@ -5,14 +5,14 @@
 ```
 ├── frontend/
 │   ├── system_design/   前端系统设计（27 篇）
-│   └── ood/             前端 OOD 题（6 题）
+│   └── ood/             前端 OOD 题（9 题）
 ├── backend/
-│   ├── nodejs/          Node.js 运行时与服务架构（12 篇）
+│   ├── nodejs/          Node.js 运行时与服务架构（13 篇）
 │   ├── system_design/   后端系统设计（50+ 篇）
 │   └── ood/
 │       ├── problems/    OOD 实战题（26 道）
 │       └── guide/       OOD 理论精讲（15 篇）
-├── fullstack/           全栈架构（4 篇）
+├── fullstack/           全栈架构（5 篇）
 └── 00_how_to_use.md
 ```
 
@@ -64,6 +64,9 @@
 | [04 Virtual DOM](frontend/ood/04_virtual_dom.md) | Virtual DOM + Diff | VNode；createElement；同层 Diff；key 优化；O(n) |
 | [05 Mini Redux](frontend/ood/05_mini_redux.md) | 设计 Mini Redux | createStore；中间件链；combineReducers；thunk；时间旅行 |
 | [06 工具函数](frontend/ood/06_utils.md) | Debounce/Throttle/LazyLoad/Memoize | 闭包；定时器；IntersectionObserver；LRU 缓存 |
+| [07 useRequest Hook](frontend/ood/07_use_request.md) | 通用请求 Hook | 竞态条件（AbortController）；重试指数退避；轮询；防抖/节流；乐观更新 |
+| [08 拖拽系统](frontend/ood/08_drag_drop.md) | Drag & Drop | 状态机（idle→dragging）；碰撞检测（closestCenter/pointerWithin）；DragContext；useDraggable/useDroppable |
+| [09 撤销/重做](frontend/ood/09_undo_redo.md) | Undo/Redo | Command Pattern；HistoryManager（Undo/Redo 栈）；命令合并；useHistory Hook；vs Redux 时间旅行 |
 
 ---
 
@@ -77,6 +80,7 @@
 | [02 全栈鉴权](fullstack/02_authentication.md) | Auth.js v5 | NextAuth.js v5 配置；OAuth providers；Session 获取四种方式；Protected Routes（Middleware）；RBAC |
 | [03 全栈测试策略](fullstack/03_testing.md) | 测试体系 | Vitest + RTL；Server Actions 测试；tRPC 测试；MSW v2；Playwright E2E；GitHub Actions CI |
 | [04 部署](fullstack/04_deployment.md) | 部署方案 | Docker 多阶段构建；Next.js standalone；Turborepo prune；Vercel；GitHub Actions；数据库 Migration 策略 |
+| [05 TanStack Query 进阶](fullstack/05_tanstack_query_advanced.md) | TQ 深度应用 | useInfiniteQuery + IntersectionObserver；RSC 预取 + HydrationBoundary；select 防重渲染；依赖查询；refetchInterval；useSuspenseQuery |
 
 ---
 
@@ -100,6 +104,7 @@ TypeScript + Node.js 服务的完整知识体系，从运行时原理到生产�
 | [10 数据库模式](backend/nodejs/10_database_patterns.md) | Prisma 进阶 | 软删除；乐观锁（版本号 CAS）；Cursor 分页；全文搜索；事务两种模式；N+1 + DataLoader |
 | [11 WebSocket 服务端](backend/nodejs/11_websocket_server.md) | Socket.io | 房间与命名空间；Redis Adapter 多节点广播；Socket 鉴权；在线状态 Presence；速率限制 |
 | [12 可观测性](backend/nodejs/12_observability.md) | OpenTelemetry | Traces/Metrics/Logs 三支柱；自动 instrumentation；自定义 Span；TraceID 跨服务传播；采样策略 |
+| [13 Redis 模式](backend/nodejs/13_redis_patterns.md) | Redis 进阶实战 | 缓存击穿（Single-flight + 分布式锁）；Hash/SortedSet/List/Pub-Sub；Lua 脚本；Pipeline；多级缓存 |
 
 ### OOD 理论精讲
 
@@ -275,6 +280,7 @@ TypeScript + Node.js 服务的完整知识体系，从运行时原理到生产�
 | [27 数字钱包](backend/system_design/06_case_studies/27_digital_wallet.md) | 支付宝 / PayPal | 复式记账；幂等转账；乐观锁防超扣；本地消息表跨分片；日终对账 |
 | [28 推荐系统](backend/system_design/06_case_studies/28_recommendation_system.md) | 电商/视频推荐 | 两阶段召回+排序；协同过滤；向量召回（FAISS）；Wide&Deep 模型；特征工程；A/B 测试 |
 | [29 CQRS + Event Sourcing](backend/system_design/06_case_studies/29_cqrs_event_sourcing.md) | 支付/审计系统 | Command/Query 分离；Event Store；聚合根；Projector；Snapshot；Schema 演进（Upcasting）|
+| [30 多租户 SaaS](backend/system_design/06_case_studies/30_multitenant_saas.md) | B2B SaaS 平台 | 三种隔离模型（行级/独立 Schema/独立 DB）；PostgreSQL RLS；租户路由；Feature Flag；配额限制 |
 
 #### 07 真实公司架构拆解
 
