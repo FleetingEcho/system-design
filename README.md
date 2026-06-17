@@ -5,9 +5,9 @@
 ```
 ├── frontend/
 │   ├── system_design/   前端系统设计（27 篇）
-│   └── ood/             前端 OOD 题（9 题）
+│   └── ood/             前端 OOD 题（11 题）
 ├── backend/
-│   ├── nodejs/          Node.js 运行时与服务架构（13 篇）
+│   ├── nodejs/          Node.js 运行时与服务架构（16 篇）
 │   ├── system_design/   后端系统设计（50+ 篇）
 │   └── ood/
 │       ├── problems/    OOD 实战题（26 道）
@@ -67,6 +67,8 @@
 | [07 useRequest Hook](frontend/ood/07_use_request.md) | 通用请求 Hook | 竞态条件（AbortController）；重试指数退避；轮询；防抖/节流；乐观更新 |
 | [08 拖拽系统](frontend/ood/08_drag_drop.md) | Drag & Drop | 状态机（idle→dragging）；碰撞检测（closestCenter/pointerWithin）；DragContext；useDraggable/useDroppable |
 | [09 撤销/重做](frontend/ood/09_undo_redo.md) | Undo/Redo | Command Pattern；HistoryManager（Undo/Redo 栈）；命令合并；useHistory Hook；vs Redux 时间旅行 |
+| [10 虚拟列表](frontend/ood/10_virtual_list.md) | Virtual List | 窗口化渲染；startIndex/endIndex 计算；固定高度 O(1)；动态高度二分查找；vs TanStack Virtual |
+| [11 表单验证引擎](frontend/ood/11_form_engine.md) | Form Engine | 字段注册；内置规则管道；异步验证；联动验证（allValues）；FormEngine 类 + 订阅模式；vs RHF |
 
 ---
 
@@ -105,6 +107,9 @@ TypeScript + Node.js 服务的完整知识体系，从运行时原理到生产�
 | [11 WebSocket 服务端](backend/nodejs/11_websocket_server.md) | Socket.io | 房间与命名空间；Redis Adapter 多节点广播；Socket 鉴权；在线状态 Presence；速率限制 |
 | [12 可观测性](backend/nodejs/12_observability.md) | OpenTelemetry | Traces/Metrics/Logs 三支柱；自动 instrumentation；自定义 Span；TraceID 跨服务传播；采样策略 |
 | [13 Redis 模式](backend/nodejs/13_redis_patterns.md) | Redis 进阶实战 | 缓存击穿（Single-flight + 分布式锁）；Hash/SortedSet/List/Pub-Sub；Lua 脚本；Pipeline；多级缓存 |
+| [14 GraphQL 服务端](backend/nodejs/14_graphql_server.md) | GraphQL | Schema 设计；Resolver；DataLoader（N+1）；Subscription（Redis PubSub）；鉴权指令；Apollo Server |
+| [15 gRPC 与微服务](backend/nodejs/15_grpc_microservices.md) | gRPC + Saga | Protobuf Schema；TypeScript 服务端/客户端；Server Streaming；Saga 编排式（补偿事务）；服务发现 |
+| [16 消息队列消费](backend/nodejs/16_message_consumer.md) | BullMQ Worker | 幂等性（Redis SETNX）；并发控制；死信队列（DLQ）；优先级；延迟任务；Prometheus 监控 |
 
 ### OOD 理论精讲
 
