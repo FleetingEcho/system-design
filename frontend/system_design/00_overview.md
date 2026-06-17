@@ -47,6 +47,7 @@
 | [23 Feed 流设计](23_feed_design.md) | 信息流 | 虚拟列表；无限滚动（IntersectionObserver）；SSE 实时新帖；乐观更新（点赞回滚）；cursor 分页 |
 | [24 协作编辑器](24_collaborative_editor_frontend.md) | 多人协作 | CRDT 客户端（Yjs）；光标同步（Awareness）；WebSocket 离线队列；Yjs + ProseMirror 集成 |
 | [25 视频播放器](25_video_player.md) | 流媒体 | HLS/DASH 自适应码率（ABR）；hls.js 接入；缓冲策略；Quality Selector；续播位置；PiP |
+| [26 Next.js App Router](26_nextjs_app_router.md) | App Router | RSC vs Client Component 边界；Server Actions；四层缓存（Request/Data/Full Route/Router）；Streaming；PPR |
 
 ---
 

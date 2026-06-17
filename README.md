@@ -4,13 +4,15 @@
 
 ```
 ├── frontend/
-│   ├── system_design/   前端系统设计（26 篇）
+│   ├── system_design/   前端系统设计（27 篇）
 │   └── ood/             前端 OOD 题（6 题）
 ├── backend/
+│   ├── nodejs/          Node.js 运行时与服务架构（7 篇）★ 新增
 │   ├── system_design/   后端系统设计（50+ 篇）
 │   └── ood/
 │       ├── problems/    OOD 实战题（23 道）
 │       └── guide/       OOD 理论精讲（15 篇）
+├── fullstack/           全栈架构（1 篇）★ 新增
 └── 00_how_to_use.md
 ```
 
@@ -50,6 +52,7 @@
 | [23 Feed 流设计](frontend/system_design/23_feed_design.md) | 信息流 | 虚拟列表；无限滚动；SSE 实时新帖；乐观更新（点赞回滚）；cursor 分页 |
 | [24 协作编辑器](frontend/system_design/24_collaborative_editor_frontend.md) | 多人协作 | CRDT（Yjs）；光标同步；WebSocket 离线队列；冲突合并 |
 | [25 视频播放器](frontend/system_design/25_video_player.md) | 流媒体 | HLS/DASH；自适应码率 ABR；hls.js；缓冲策略；Quality Selector；续播；PiP |
+| [26 Next.js App Router](frontend/system_design/26_nextjs_app_router.md) | App Router | RSC vs Client Component 边界；Server Actions；四层缓存；Streaming + Suspense；PPR |
 
 ### 前端 OOD
 
@@ -64,7 +67,31 @@
 
 ---
 
+## 全栈
+
+### Monorepo 与端到端架构
+
+| 文件 | 主题 | 核心内容 |
+|------|------|---------|
+| [01 Monorepo 架构](fullstack/01_monorepo_architecture.md) | 全栈整合 | Turborepo；Zod 单一真相来源；tRPC 端到端类型安全；Prisma 类型层；共享 UI 包 |
+
+---
+
 ## 后端
+
+### Node.js 运行时与服务架构
+
+TypeScript + Node.js 服务的完整知识体系，从运行时原理到生产级实践。
+
+| 文件 | 主题 | 核心内容 |
+|------|------|---------|
+| [01 Event Loop](backend/nodejs/01_event_loop.md) | 运行时原理 | 六个阶段；process.nextTick vs Promise；setImmediate vs setTimeout；libuv 线程池；Event Loop 阻塞 |
+| [02 Streams](backend/nodejs/02_streams.md) | 流与背压 | Readable/Writable/Transform；背压机制；pipeline vs pipe；大文件处理；CSV 解析 |
+| [03 服务分层架构](backend/nodejs/03_service_architecture.md) | 项目结构 | Routes/Controllers/Services/Repositories 分层；TypeScript DI；接口隔离；单测策略 |
+| [04 错误处理](backend/nodejs/04_error_handling.md) | 错误体系 | AppError 层次；全局 Express error handler；Zod 错误转换；async 路由捕获；进程级兜底 |
+| [05 NestJS 架构](backend/nodejs/05_nestjs_architecture.md) | NestJS | Module/DI 生命周期；Guard/Interceptor/Pipe/Filter 执行顺序；REQUEST scope；自定义装饰器 |
+| [06 生产级模式](backend/nodejs/06_production_patterns.md) | 生产实践 | Graceful Shutdown（SIGTERM）；Pino 结构化日志；AsyncLocalStorage 请求追踪；Health Check；Zod Config |
+| [07 性能与扩展](backend/nodejs/07_performance_scaling.md) | 性能 | Worker Threads；Cluster；内存泄漏排查；Event Loop 监控；Profiling；Worker vs Cluster 决策 |
 
 ### OOD 理论精讲
 
