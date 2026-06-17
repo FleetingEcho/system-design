@@ -7,12 +7,12 @@
 │   ├── system_design/   前端系统设计（27 篇）
 │   └── ood/             前端 OOD 题（6 题）
 ├── backend/
-│   ├── nodejs/          Node.js 运行时与服务架构（7 篇）★ 新增
+│   ├── nodejs/          Node.js 运行时与服务架构（12 篇）
 │   ├── system_design/   后端系统设计（50+ 篇）
 │   └── ood/
-│       ├── problems/    OOD 实战题（23 道）
+│       ├── problems/    OOD 实战题（26 道）
 │       └── guide/       OOD 理论精讲（15 篇）
-├── fullstack/           全栈架构（1 篇）★ 新增
+├── fullstack/           全栈架构（4 篇）
 └── 00_how_to_use.md
 ```
 
@@ -74,6 +74,9 @@
 | 文件 | 主题 | 核心内容 |
 |------|------|---------|
 | [01 Monorepo 架构](fullstack/01_monorepo_architecture.md) | 全栈整合 | Turborepo；Zod 单一真相来源；tRPC 端到端类型安全；Prisma 类型层；共享 UI 包 |
+| [02 全栈鉴权](fullstack/02_authentication.md) | Auth.js v5 | NextAuth.js v5 配置；OAuth providers；Session 获取四种方式；Protected Routes（Middleware）；RBAC |
+| [03 全栈测试策略](fullstack/03_testing.md) | 测试体系 | Vitest + RTL；Server Actions 测试；tRPC 测试；MSW v2；Playwright E2E；GitHub Actions CI |
+| [04 部署](fullstack/04_deployment.md) | 部署方案 | Docker 多阶段构建；Next.js standalone；Turborepo prune；Vercel；GitHub Actions；数据库 Migration 策略 |
 
 ---
 
@@ -92,6 +95,11 @@ TypeScript + Node.js 服务的完整知识体系，从运行时原理到生产�
 | [05 NestJS 架构](backend/nodejs/05_nestjs_architecture.md) | NestJS | Module/DI 生命周期；Guard/Interceptor/Pipe/Filter 执行顺序；REQUEST scope；自定义装饰器 |
 | [06 生产级模式](backend/nodejs/06_production_patterns.md) | 生产实践 | Graceful Shutdown（SIGTERM）；Pino 结构化日志；AsyncLocalStorage 请求追踪；Health Check；Zod Config |
 | [07 性能与扩展](backend/nodejs/07_performance_scaling.md) | 性能 | Worker Threads；Cluster；内存泄漏排查；Event Loop 监控；Profiling；Worker vs Cluster 决策 |
+| [08 测试体系](backend/nodejs/08_testing.md) | 测试 | 测试金字塔；Vitest；测试替身（Stub/Mock/Spy/Fake）；TestContainers；Supertest；MSW v2；测试数据工厂 |
+| [09 鉴权实现](backend/nodejs/09_auth_implementation.md) | JWT 鉴权 | Access + Refresh 双 Token；Refresh Token 轮换（Rotation）；HttpOnly Cookie；OAuth2 PKCE；强制下线 |
+| [10 数据库模式](backend/nodejs/10_database_patterns.md) | Prisma 进阶 | 软删除；乐观锁（版本号 CAS）；Cursor 分页；全文搜索；事务两种模式；N+1 + DataLoader |
+| [11 WebSocket 服务端](backend/nodejs/11_websocket_server.md) | Socket.io | 房间与命名空间；Redis Adapter 多节点广播；Socket 鉴权；在线状态 Presence；速率限制 |
+| [12 可观测性](backend/nodejs/12_observability.md) | OpenTelemetry | Traces/Metrics/Logs 三支柱；自动 instrumentation；自定义 Span；TraceID 跨服务传播；采样策略 |
 
 ### OOD 理论精讲
 
@@ -156,6 +164,9 @@ TypeScript + Node.js 服务的完整知识体系，从运行时原理到生产�
 | [20 井字棋](backend/ood/problems/20_tic_tac_toe.md) | Tic-Tac-Toe | N×N 棋盘；O(1) 胜负检测（行列对角线计数器）；玩家多态；Minimax AI |
 | [21 电影院订票](backend/ood/problems/21_cinema_booking.md) | Cinema Booking | 2D 座位图；乐观锁防超卖（CAS）；预订超时释放；区域差异定价 |
 | [22 LFU Cache](backend/ood/problems/22_lfu_cache.md) | LFU Cache | 双 HashMap + LinkedHashSet；minFreq 追踪；O(1) get&put；同频 LRU |
+| [24 任务队列](backend/ood/problems/24_job_queue.md) | Job Queue | 优先级队列；失败重试（指数退避）；并发控制；BullMQ 对比；分布式锁防重复执行 |
+| [25 中间件管道](backend/ood/problems/25_middleware_pipeline.md) | Middleware Pipeline | compose 实现（洋葱模型）；异步中间件链；错误中间件；Express vs Koa 模型对比 |
+| [26 连接池](backend/ood/problems/26_connection_pool.md) | Connection Pool | acquire/release；等待队列；健康检查；泄漏检测；PgBouncer 场景 |
 
 ---
 
@@ -263,6 +274,7 @@ TypeScript + Node.js 服务的完整知识体系，从运行时原理到生产�
 | [26 游戏排行榜](backend/system_design/06_case_studies/26_gaming_leaderboard.md) | 实时排行榜 | Redis ZSet（ZADD GT/ZREVRANK）；虚拟节点分片；Top 100 缓存刷新 |
 | [27 数字钱包](backend/system_design/06_case_studies/27_digital_wallet.md) | 支付宝 / PayPal | 复式记账；幂等转账；乐观锁防超扣；本地消息表跨分片；日终对账 |
 | [28 推荐系统](backend/system_design/06_case_studies/28_recommendation_system.md) | 电商/视频推荐 | 两阶段召回+排序；协同过滤；向量召回（FAISS）；Wide&Deep 模型；特征工程；A/B 测试 |
+| [29 CQRS + Event Sourcing](backend/system_design/06_case_studies/29_cqrs_event_sourcing.md) | 支付/审计系统 | Command/Query 分离；Event Store；聚合根；Projector；Snapshot；Schema 演进（Upcasting）|
 
 #### 07 真实公司架构拆解
 
