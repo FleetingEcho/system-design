@@ -139,6 +139,7 @@ DDD 基础（15）            ← OOD 理论落地实际项目的关键
 | [02 NoSQL](02_storage/02_nosql.md) | KV / 文档 / 宽列 / 图 四类对比；Cassandra LSM Tree；适用场景 |
 | [03 缓存](02_storage/03_cache.md) | Cache-Aside / Write-Through / Write-Back；缓存穿透 / 击穿 / 雪崩及防御 |
 | [04 对象存储](02_storage/04_object_storage.md) | S3 架构；分片上传；Pre-signed URL；冷热分层 |
+| [05 Schema 设计](02_storage/05_schema_design.md) | 规范化 vs 反范式化；高频 Schema 案例（电商/社交/RBAC/审计日志/树形结构）；索引设计；分片键选择 |
 
 ---
 
@@ -151,6 +152,7 @@ DDD 基础（15）            ← OOD 理论落地实际项目的关键
 | [01 同步通信](03_communication/01_sync.md) | REST vs gRPC vs GraphQL；API Gateway；幂等性设计 |
 | [02 异步通信](03_communication/02_async.md) | Kafka vs RabbitMQ；Exactly-Once；Outbox 模式；消息积压处理 |
 | [03 实时通信](03_communication/03_realtime.md) | WebSocket / SSE / 长轮询对比；WebSocket 横向扩展；心跳与离线消息 |
+| [04 API 设计](03_communication/04_api_design.md) | 分页策略（Offset/Cursor/Keyset）；版本管理；幂等键；RESTful 规范；请求签名；tRPC 类型安全 API |
 
 ---
 
@@ -274,5 +276,19 @@ DDD 基础（15）            ← OOD 理论落地实际项目的关键
 | [03 Netflix](07_real_world/03_netflix.md) | Netflix | Open Connect 自建 CDN；预推送；HLS 自适应码率；混沌工程 |
 | [04 Discord](07_real_world/04_discord.md) | Discord | MongoDB→Cassandra→ScyllaDB 迁移；SFU 语音；大群 Fanout 分片 |
 | [05 WhatsApp](07_real_world/05_whatsapp.md) | WhatsApp | Erlang 200 万连接/台；E2EE Signal Protocol；消息不持久化设计 |
+
+---
+
+## 10 前端系统设计专题
+
+面向 TypeScript / 全栈工程师的补充模块，覆盖后端视角看不到的前端规模化挑战。
+
+| 文件 | 主题 | 核心内容 |
+|------|------|---------|
+| [00 专题概览](10_frontend_system_design/00_overview.md) | 总览 | 前端系统设计 vs 后端对比；45分钟框架；差异化得分点 |
+| [01 SSR/SSG/ISR](10_frontend_system_design/01_ssr_ssg_isr.md) | 渲染策略 | 四种模式对比；流式 SSR；ISR 失效策略；CDN 分层缓存；缓存雪崩防御 |
+| [02 微前端架构](10_frontend_system_design/02_micro_frontend.md) | 应用拆分 | Module Federation 配置；路由治理；共享状态方案；样式隔离；独立部署流水线 |
+| [03 BFF 架构](10_frontend_system_design/03_bff.md) | Backend for Frontend | GraphQL BFF + DataLoader（N+1解决）；tRPC 类型安全 API；REST vs GraphQL 选型 |
+| [04 前端性能监控](10_frontend_system_design/04_frontend_monitoring.md) | RUM | Core Web Vitals 采集 SDK；Beacon API；ClickHouse 时序存储；环比异常告警 |
 
 ---
