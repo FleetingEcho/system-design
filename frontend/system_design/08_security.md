@@ -1,7 +1,7 @@
 # 前端安全
 
 > 前端安全面试考点：XSS、CSRF、CSP、Auth 方案。
-> 后端安全见 [01_fundamentals/05_auth_security.md](../01_fundamentals/05_auth_security.md)，本文聚焦前端特有场景。
+> 后端安全见 [01_fundamentals/05_auth_security.md](../../backend/system_design/01_fundamentals/05_auth_security.md)，本文聚焦前端特有场景。
 
 ---
 

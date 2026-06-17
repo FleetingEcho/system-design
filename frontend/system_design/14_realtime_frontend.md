@@ -1,6 +1,6 @@
 # 实时通信前端模式
 
-> 服务端的 WebSocket/SSE 架构见 [03_communication/03_realtime.md](../03_communication/03_realtime.md)。
+> 服务端的 WebSocket/SSE 架构见 [03_communication/03_realtime.md](../../backend/system_design/03_communication/03_realtime.md)。
 > 本文聚焦**前端视角**：连接管理、断线重连、客户端消息队列、乐观 UI、presence 在线状态。
 
 ---
