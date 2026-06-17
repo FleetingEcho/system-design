@@ -290,5 +290,9 @@ DDD 基础（15）            ← OOD 理论落地实际项目的关键
 | [02 微前端架构](10_frontend_system_design/02_micro_frontend.md) | 应用拆分 | Module Federation 配置；路由治理；共享状态方案；样式隔离；独立部署流水线 |
 | [03 BFF 架构](10_frontend_system_design/03_bff.md) | Backend for Frontend | GraphQL BFF + DataLoader（N+1解决）；tRPC 类型安全 API；REST vs GraphQL 选型 |
 | [04 前端性能监控](10_frontend_system_design/04_frontend_monitoring.md) | RUM | Core Web Vitals 采集 SDK；Beacon API；ClickHouse 时序存储；环比异常告警 |
+| [05 框架横向对比](10_frontend_system_design/05_framework_comparison.md) | 生态选型 | Next.js / Remix+RR v7 / TanStack Start / Astro / Nuxt / SvelteKit；选型决策树 |
+| [06 状态管理](10_frontend_system_design/06_state_management.md) | 状态架构 | 服务端状态（TanStack Query/SWR）vs 客户端状态（Zustand/Jotai/Redux Toolkit）；乐观更新 |
+| [07 性能优化](10_frontend_system_design/07_performance_optimization.md) | 加载+运行时 | 代码分割；bundle 优化；虚拟滚动（TanStack Virtual）；Web Worker；关键渲染路径 |
+| [08 前端安全](10_frontend_system_design/08_security.md) | 安全 | XSS/CSRF/CSP；DOMPurify；NextAuth.js/Clerk 认证方案；HttpOnly Cookie vs JWT 存储 |
 
 ---
