@@ -304,5 +304,9 @@ DDD 基础（15）            ← OOD 理论落地实际项目的关键
 | [16 浏览器存储](10_frontend_system_design/16_browser_storage.md) | 存储选型 | Cookie/LocalStorage/SessionStorage/IndexedDB/Cache API/OPFS 对比；选型决策树；配额管理 |
 | [17 SEO 架构](10_frontend_system_design/17_seo_architecture.md) | SEO | Meta 标签；Open Graph；JSON-LD 结构化数据；动态 OG 图片（@vercel/og）；Sitemap；Canonical URL |
 | [18 项目架构](10_frontend_system_design/18_project_architecture.md) | 可维护性 | Feature-Sliced Design；Turborepo/Nx Monorepo；Barrel Exports 反模式；ESLint 层级约束；dependency-cruiser |
+| [19 图片与媒体优化](10_frontend_system_design/19_image_optimization.md) | 资源优化 | WebP/AVIF 格式选型；响应式 srcset；Next/Image；CDN 图片变换（Cloudinary/Imgix）；懒加载；视频优化 |
+| [20 错误监控与边界](10_frontend_system_design/20_error_monitoring.md) | 稳定性 | React Error Boundary；全局错误捕获；Sentry 集成与 Source Map；错误告警分级；react-error-boundary |
+| [21 动画性能](10_frontend_system_design/21_animation_performance.md) | 渲染性能 | 浏览器渲染流水线；transform/opacity GPU 加速；will-change；rAF；WAAPI；Framer Motion；FLIP 技术 |
+| [22 可访问性（a11y）](10_frontend_system_design/22_accessibility.md) | 无障碍 | WCAG 2.1 POUR；语义化 HTML；ARIA；键盘导航与焦点陷阱；颜色对比度；表单 a11y；axe 自动化检测 |
 
 ---
