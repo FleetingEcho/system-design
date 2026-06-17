@@ -294,5 +294,15 @@ DDD 基础（15）            ← OOD 理论落地实际项目的关键
 | [06 状态管理](10_frontend_system_design/06_state_management.md) | 状态架构 | 服务端状态（TanStack Query/SWR）vs 客户端状态（Zustand/Jotai/Redux Toolkit）；乐观更新 |
 | [07 性能优化](10_frontend_system_design/07_performance_optimization.md) | 加载+运行时 | 代码分割；bundle 优化；虚拟滚动（TanStack Virtual）；Web Worker；关键渲染路径 |
 | [08 前端安全](10_frontend_system_design/08_security.md) | 安全 | XSS/CSRF/CSP；DOMPurify；NextAuth.js/Clerk 认证方案；HttpOnly Cookie vs JWT 存储 |
+| [09 Design System](10_frontend_system_design/09_design_system.md) | 设计系统 | Design Token 3 层模型；CSS Variables 主题；Style Dictionary；Radix UI；shadcn/ui；Storybook；tsup 构建；Changesets |
+| [10 PWA & 离线](10_frontend_system_design/10_pwa_offline.md) | 离线能力 | Service Worker 生命周期；5 种缓存策略；Workbox VitePWA；Dexie.js IndexedDB；Background Sync；Push Notifications |
+| [11 Feature Flag & A/B](10_frontend_system_design/11_feature_flag_ab.md) | 功能开关 | 确定性 Hash 分桶；Client/Server/Edge 分流；FOUC 防护；GrowthBook vs LaunchDarkly；A/B 统计显著性 |
+| [12 CI/CD & 测试](10_frontend_system_design/12_cicd_testing.md) | 工程质量 | Vitest；Testing Library；MSW v2；Playwright POM；Chromatic 视觉回归；Lighthouse CI；GitHub Actions 流水线 |
+| [13 国际化（i18n）](10_frontend_system_design/13_i18n.md) | 多语言 | next-intl ICU 格式；RTL CSS 逻辑属性；Intl API（日期/数字/相对时间）；Lokalise 翻译工作流 |
+| [14 实时通信](10_frontend_system_design/14_realtime_frontend.md) | 实时 | WebSocket 重连（指数退避）；客户端消息队列；乐观 UI；Presence 在线状态；SSE；网络感知 |
+| [15 文件上传](10_frontend_system_design/15_file_upload.md) | 大文件 | 分块上传断点续传；Pre-signed URL 直传 S3；tus 协议；客户端图片压缩；并发控制；上传安全 |
+| [16 浏览器存储](10_frontend_system_design/16_browser_storage.md) | 存储选型 | Cookie/LocalStorage/SessionStorage/IndexedDB/Cache API/OPFS 对比；选型决策树；配额管理 |
+| [17 SEO 架构](10_frontend_system_design/17_seo_architecture.md) | SEO | Meta 标签；Open Graph；JSON-LD 结构化数据；动态 OG 图片（@vercel/og）；Sitemap；Canonical URL |
+| [18 项目架构](10_frontend_system_design/18_project_architecture.md) | 可维护性 | Feature-Sliced Design；Turborepo/Nx Monorepo；Barrel Exports 反模式；ESLint 层级约束；dependency-cruiser |
 
 ---
